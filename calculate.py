@@ -164,27 +164,12 @@ def kchng(Q_kchng_day, Q_kchng):
 
 
 # ===============================================================
-# -------------------- ЛОДОЧНЫЙ -------------------------------
+# -------------------- ЛОДОЧНЫЙ ---------------------------------
 # ===============================================================
 def lodochny(
-    Q_tagul,
-    Q_lodochny,
-    V_upn_lodochny_prev,
-    G_ichem,
-    V_ichem_prev,
-    G_lodochny_ichem,
-    Q_tagul_prev,
-    G_lodochni_upsv_yu_prev,
-    K_otkachki,
-    K_gupn_lodochny,
-    N,
-    Q_vo_day,
-    Q_lodochny_day,
-    Q_tagul_day,
-    V_tagul,
-    V_tagul_prev,
-    K_g_tagul,
-    G_kchng,
+    Q_tagul, Q_lodochny, V_upn_lodochny_prev, G_ichem, V_ichem_prev, G_lodochny_ichem,
+    Q_tagul_prev_month, G_lodochni_upsv_yu_prev_month, K_otkachki, K_gupn_lodochny, N, Q_vo_day,
+    Q_lodochny_day, Q_tagul_day, V_tagul, V_tagul_prev, K_g_tagul, G_kchng,
 ):
     # Преобразование входных данных
     Q_tagul = np.array(Q_tagul, dtype=float)
@@ -195,8 +180,8 @@ def lodochny(
     V_ichem_prev = _to_float(V_ichem_prev)
     G_ichem = _to_float(G_ichem)
     G_lodochny_ichem = _to_float(G_lodochny_ichem)
-    G_lodochni_upsv_yu_prev = _to_float(G_lodochni_upsv_yu_prev)
-    Q_tagul_prev = _to_float(Q_tagul_prev)
+    G_lodochni_upsv_yu_prev_month = _to_float(G_lodochni_upsv_yu_prev_month)
+    Q_tagul_prev_month = _to_float(Q_tagul_prev_month)
     V_tagul = _to_float(V_tagul)
     V_tagul_prev = _to_float(V_tagul_prev)
     K_otkachki = float(K_otkachki)
@@ -221,9 +206,9 @@ def lodochny(
     V_lodochny = V_upn_lodochny - V_ichem
 
     # --- 25. Коэффициент откачки ---
-    K_otkachki_month = (G_lodochni_upsv_yu_prev / Q_tagul_prev)
+    K_otkachki_month = (G_lodochni_upsv_yu_prev_month / Q_tagul_prev_month)
     if (K_otkachki-K_otkachki_month) >= 0.01:
-        in_1 = int(input(f"Заменить коэффициент откачки {K_otkachki}={K_otkachki_month}"))
+        in_1 = int(input(f"Заменить коэффициент откачки K_otkachki: {K_otkachki} = K_otkachki_month: {K_otkachki_month}"))
         if in_1 == 1:
             K_otkachki = K_otkachki_month
     # --- 26. Откачка нефти Лодочного месторождения на УПСВ-Юг ---
@@ -238,11 +223,11 @@ def lodochny(
         G_sikn_tagul_N = [value for _ in range(N - 2)]
         G_sikn_tagul = (G_lodochny_uspv_yu_month - sum(G_sikn_tagul_N))/2
     if 900 <= G_sikn_tagul <= 1500:
-        alarm = False
+        alarm = False # заменить на переменную из массива
     else:
         in_2 = int(input(f"Необходимо откорректировать значение откачки {G_sikn_tagul}"))
         G_sikn_tagul = in_2
-        alarm = True
+        alarm = True # заменить на переменную из массива
     list_g_skin_tagul. append(G_sikn_tagul)
     G_sikn_tagul_month = sum(list_g_skin_tagul)
     # --- 28–29. Откачка в МН Тагульского месторождения ---
@@ -271,46 +256,22 @@ def lodochny(
     G_tagul_lodochny_month = sum(list_g_tagul_lodochny)
 
     return {
-        "Q_tagulsk_month": Q_tagulsk_month,
-        "Q_lodochny_month": Q_lodochny_month,
-        "V_upn_lodochny": V_upn_lodochny,
-        "V_ichem": V_ichem,
-        "V_lodochny": V_lodochny,
-        "K_otkachki_month": K_otkachki_month,
-        "G_lodochny_uspv_yu": G_lodochny_uspv_yu,
-        "G_lodochny_uspv_yu_month": G_lodochny_uspv_yu_month,
-        "G_sikn_tagul": G_sikn_tagul,
-        "G_sikn_tagul_month": G_sikn_tagul_month,
-        "delte_G_tagul": delte_G_tagul,
-        "delte_G_tagul_month": delte_G_tagul_month,
-        "G_upn_lodochny": G_upn_lodochny,
-        "G_lodochny": G_lodochny,
-        "G_lodochny_month": G_lodochny_month,
-        "delte_G_upn_lodochny": delte_G_upn_lodochny,
-        "G_upn_lodochny_month": G_upn_lodochny_month,
-        "G_tagul_lodochny": G_tagul_lodochny,
-        "G_tagul_lodochny_month": G_tagul_lodochny_month,
+        "Q_tagulsk_month": Q_tagulsk_month, "Q_lodochny_month": Q_lodochny_month, "V_upn_lodochny": V_upn_lodochny,
+        "V_ichem": V_ichem, "V_lodochny": V_lodochny, "K_otkachki_month": K_otkachki_month, "G_lodochny_uspv_yu": G_lodochny_uspv_yu,
+        "G_lodochny_uspv_yu_month": G_lodochny_uspv_yu_month, "G_sikn_tagul": G_sikn_tagul, "G_sikn_tagul_month": G_sikn_tagul_month,
+        "delte_G_tagul": delte_G_tagul, "delte_G_tagul_month": delte_G_tagul_month, "G_upn_lodochny": G_upn_lodochny,
+        "G_lodochny": G_lodochny, "G_lodochny_month": G_lodochny_month, "delte_G_upn_lodochny": delte_G_upn_lodochny,
+        "G_upn_lodochny_month": G_upn_lodochny_month, "G_tagul_lodochny": G_tagul_lodochny, "G_tagul_lodochny_month": G_tagul_lodochny_month,
         "G_tagul_month":G_tagul_month,
     }
 
 # ===============================================================
-# -------------------- Блок «ЦППН-1»: -------------------------------
+# -------------------- Блок «ЦППН-1»: ---------------------------
 # ===============================================================
 def CPPN_1 (
-    V_upsv_yu_prev,
-    V_upsv_s_prev,
-    V_upsv_cps_prev,
-    V_upsv_yu_0,
-    V_upsv_s_0,
-    V_upsv_cps_0,
-    V_upsv_yu,
-    V_upsv_s,
-    V_upsv_cps,
-    N,
-    flag_list,
-    V_lodochny_cps_upsv_yu_prev,
-    G_lodochni_upsv_yu,
-    G_sikn_tagul
+    V_upsv_yu_prev, V_upsv_s_prev, V_upsv_cps_prev, V_upsv_yu_0, V_upsv_s_0, V_upsv_cps_0,
+    V_upsv_yu, V_upsv_s, V_upsv_cps, N, V_lodochny_cps_upsv_yu_prev, G_lodochni_upsv_yu,
+    G_sikn_tagul, flag_list
 ):
     V_upsv_yu_prev=_to_float(V_upsv_yu_prev)
     V_upsv_s_prev = _to_float(V_upsv_s_prev)
@@ -363,3 +324,6 @@ def CPPN_1 (
         "V_cppn_1": V_cppn_1,
         "V_lodochny_cps_upsv_yu": V_lodochny_cps_upsv_yu,
     }
+# ===============================================================
+# -------------------- Блок «Сдача ООО «РН-Ванкор»: ---------------------------
+# ===============================================================
