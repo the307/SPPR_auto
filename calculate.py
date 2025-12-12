@@ -323,17 +323,24 @@ def CPPN_1 (
 # ------------------ Блок «Сдача ООО «РН-Ванкор»: ---------------
 # ===============================================================
 def rn_vankor (
-        F_vn, F_suzun_obsh, F_suzun_vankor, N, day
+        F_vn, F_suzun_obsh, F_suzun_vankor, N, day, V_ctn_suzun_vslu_norm, V_ctn_suzun_vslu, F_tagul_lpu, F_tagul_tpu, F_skn
 ):
     F_vn = _to_float(F_vn)
     F_suzun_obsh = _to_float(F_suzun_obsh)
     F_suzun_vankor = _to_float(F_suzun_vankor)
+    V_ctn_suzun_vslu_norm = _to_float(V_ctn_suzun_vslu_norm)
+    V_ctn_suzun_vslu = _to_float(V_ctn_suzun_vslu)
+    F_tagul_lpu = _to_float(F_tagul_lpu)
+    F_tagul_tpu = _to_float(F_tagul_tpu)
+    F_skn = _to_float(F_skn)
     sum_value = 0
-
-
+    F_bp_suzun_vslu=0 # по ид в бизнес плане уст значение 0
     list_f_vn_bn = []
     list_f_bn_suzun = []
     list_f_bn_suzun_vankor = []
+    list_f_bp_suzun_vslu = []
+    list_f_tagul_lpu = []
+    list_f_tagul_tpu = []
 # 40. Определение посуточной сдачи нефти АО «Ванкорнефть» через СИКН № 1209, т/сут:
     if day <= N-2:
         F_bn_vn = 50*round(F_vn/N/50)
@@ -346,7 +353,7 @@ def rn_vankor (
 # 41. Определение посуточной сдачи нефти АО «Сузун» (Сузун) через СИКН № 1209, т/сут:
     F_suzun = F_suzun_obsh - F_suzun_vankor
     if day < N-2:
-        F_bn_suzun =50*round(F_suzun/N/50)
+        F_bn_suzun = 50 * round(F_suzun / N / 50)
     else:
         value = 50 * round(F_suzun/N / 50)
         F_bn_suzun_N = [value for _ in range(N - 2)]
@@ -375,10 +382,44 @@ def rn_vankor (
             F_bp_suzun_vankor = 50 * round(F_suzun_vankor / N / 50)
         else:
             value = 50 * round(F_suzun_vankor / N / 50)
-            F_bp_suzun_vankor_N = [value] * (N - 2)
-            remaining_value = F_suzun_vankor - sum(F_bp_suzun_vankor_N)
-            F_bp_suzun_vankor = 50 * round(remaining_value / 2 / 50)
+            F_bp_suzun_vankor_N = [value for _ in range(N - 2)]
+            remaining_value = (F_suzun_vankor - sum(F_bp_suzun_vankor_N))/2
+            F_bp_suzun_vankor = 50 * round(remaining_value / 50)
     list_f_bn_suzun_vankor.append(F_bp_suzun_vankor)
+    F_bp_suzun_vankor_month = sum(list_f_bn_suzun_vankor)
+# 43. Определение посуточной сдачи нефти АО «Сузун» (ВСЛУ) через СИКН № 1209, т/сут:
+    if V_ctn_suzun_vslu > V_ctn_suzun_vslu_norm+1000:
+        F_bp_suzun_vslu = 1000
+    list_f_bp_suzun_vslu.append(F_bp_suzun_vslu)
+    F_bp_suzun_vslu_month = sum(list_f_bp_suzun_vslu)
+# 44-45 Определение посуточной сдачи нефти ООО «Тагульское» через СИКН № 1209, т/сут
+    if day <= N-2:
+        F_bp_tagul_lpu = 50 * round(F_tagul_lpu / N / 50)
+        F_bp_tagul_tpu = 50 * round(F_tagul_lpu / N / 50)
+    else:
+        value_1 = 50 * round(F_tagul_lpu / N / 50)
+        F_bp_tagul_lpu_N = [value_1 for _ in range(N - 2)]
+        F_bp_tagul_lpu = (F_tagul_lpu - sum(F_bp_tagul_lpu_N))/2
+        value_2 = 50 * round(F_tagul_tpu / N / 50)
+        F_bp_tagul_tpu_N = [value_2 for _ in range(N - 2)]
+        F_bp_tagul_tpu = (F_tagul_tpu - sum(F_bp_tagul_tpu_N))/2
+    list_f_tagul_lpu.append(F_bp_tagul_lpu)
+    list_f_tagul_tpu.append(F_bp_tagul_tpu)
+    F_bp_tagul_lpu_month = sum(list_f_tagul_lpu)
+    F_bp_tagul_tpu_month = sum(list_f_tagul_tpu)
+# 46. Расчет суммарной сдачи ООО «Тагульское» через СИКН № 1209:
+    F_pb_tagul = F_bp_tagul_lpu + F_bp_tagul_tpu
+#  47.	Определение посуточной сдачи нефти ООО «СевКомНефтегаз» через СИКН № 1209, т/сут:
+    if day <= N-2:
+        F_bp_skn = 50 * round(F_skn/N/50)
+    else:
+        value = 50 * round(F_skn/N/50)
+        F_bp_skn_N = [value for _ in range(N - 2)]
+        F_bp_skn = (F_skn - sum(F_bp_skn_N))/2
+# Предусмотреть всю сумму за месяц (конец 47 формулы)
+
+# 48. Определение посуточной сдачи нефти ООО «Восток Ойл» через СИКН № 1209, т/сут:
+
 
 
 

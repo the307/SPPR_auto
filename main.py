@@ -170,6 +170,11 @@ def main():
     F_vn = master_df.loc[master_df["date"] == n, "volume_vankor"].values
     F_suzun_obsh = master_df.loc[master_df["date"] == n, "volume_suzun"].values
     F_suzun_vankor = master_df.loc[master_df["date"] == n, "suzun_vankor"].values
+    V_ctn_suzun_vslu_norm = master_df.loc[master_df["date"] == prev_days, "ctn_suzun_vslu_norm"].values
+    V_ctn_suzun_vslu = master_df.loc[master_df["date"] == n, "ctn_suzun_vslu"].values
+    F_tagul_lpu = master_df.loc[master_df["date"] == n, "volume_lodochny"].values
+    F_tagul_tpu = master_df.loc[master_df["date"] == n, "volume_tagulsk"].values
+    F_skn = master_df.loc[master_df["date"] == n, "skn"].values
     # Ручной ввод
     # if buttom_11:
     #     F_bn_vn = int(input("Введите значение F_бн_вн: "))
@@ -181,7 +186,8 @@ def main():
 
 
     rn_vankor_result = calculate.rn_vankor(
-        F_vn=F_vn, F_suzun_obsh=F_suzun_obsh, F_suzun_vankor=F_suzun_vankor, N=N,
+        F_vn=F_vn, F_suzun_obsh=F_suzun_obsh, F_suzun_vankor=F_suzun_vankor, N=N, day=day,V_ctn_suzun_vslu=V_ctn_suzun_vslu ,V_ctn_suzun_vslu_norm=V_ctn_suzun_vslu_norm,
+        F_tagul_lpu=F_tagul_lpu, F_tagul_tpu=F_tagul_tpu, F_skn=F_skn
     )
     # --- вывод результата в excel---
     output_path = "output.xlsx"  # имя выходного файла
