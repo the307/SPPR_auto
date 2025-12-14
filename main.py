@@ -1,7 +1,6 @@
 import pandas as pd
 import numpy as np
 import calculate
-from calculate import rn_vankor
 from loader import build_all_data, get_day
 
 
@@ -29,7 +28,7 @@ def main():
     master_df = build_all_data()
     master_df["date"] = pd.to_datetime(master_df["date"], errors="coerce").dt.normalize()
     # Получаем даты
-    n, N, m, prev_days, prev_month,day = get_day()
+    n, N, m, prev_days, prev_month, day = get_day()
     n = pd.to_datetime(n).normalize()
     prev_days = pd.to_datetime(prev_days).normalize()
     prev_month = pd.to_datetime(prev_month).normalize()
@@ -105,8 +104,9 @@ def main():
     # ===============================================================
     # -------------------- ЛОДОЧНЫЙ ---------------------------------
     # ===============================================================
-    Q_tagulsk_prev_month = master_df.loc[master_df["date"].dt.month == prev_month, "gtm_tagulsk"].values
-    G_lodochni_upsv_yu_prev_month = master_df.loc[master_df["date"].dt.month == prev_month, "lodochni_upsv_yu"].values
+    Q_tagulsk_prev_month = master_df.loc[master_df["date"] == prev_month, "gtm_tagulsk"].values
+    print(Q_tagulsk_prev_month)
+    G_lodochni_upsv_yu_prev_month = master_df.loc[master_df["date"] == prev_month, "lodochni_upsv_yu"].values
     Q_tagulsk = master_df.loc[master_df["date"].dt.month == m, "gtm_tagulsk"].values
     Q_lodochny = master_df.loc[master_df["date"].dt.month == m, "gtm_lodochny"].values
     Q_lodochny_day = master_df.loc[master_df["date"] == n, "gtm_lodochny"].values
@@ -164,31 +164,33 @@ def main():
     )
     master_df = assign_results_to_master(master_df, n, CPPN_1_results)
 
-    # ===============================================================
-    # ------------------ Блок «Сдача ООО «РН-Ванкор»: ---------------
-    # ===============================================================
-    F_vn = master_df.loc[master_df["date"] == n, "volume_vankor"].values
-    F_suzun_obsh = master_df.loc[master_df["date"] == n, "volume_suzun"].values
-    F_suzun_vankor = master_df.loc[master_df["date"] == n, "suzun_vankor"].values
-    V_ctn_suzun_vslu_norm = master_df.loc[master_df["date"] == prev_days, "ctn_suzun_vslu_norm"].values
-    V_ctn_suzun_vslu = master_df.loc[master_df["date"] == n, "ctn_suzun_vslu"].values
-    F_tagul_lpu = master_df.loc[master_df["date"] == n, "volume_lodochny"].values
-    F_tagul_tpu = master_df.loc[master_df["date"] == n, "volume_tagulsk"].values
-    F_skn = master_df.loc[master_df["date"] == n, "skn"].values
-    # Ручной ввод
-    # if buttom_11:
-    #     F_bn_vn = int(input("Введите значение F_бн_вн: "))
-    # if buttom_12:
-    #     F_suzun = int(input("Введите значение F_suzun: "))
-    # if buttom_12:
-    #     F_bp_suzun_vankor = int(input("Введите значение F_bn_suzun_vankor: "))
-
-
-
-    rn_vankor_result = calculate.rn_vankor(
-        F_vn=F_vn, F_suzun_obsh=F_suzun_obsh, F_suzun_vankor=F_suzun_vankor, N=N, day=day,V_ctn_suzun_vslu=V_ctn_suzun_vslu ,V_ctn_suzun_vslu_norm=V_ctn_suzun_vslu_norm,
-        F_tagul_lpu=F_tagul_lpu, F_tagul_tpu=F_tagul_tpu, F_skn=F_skn
-    )
+    # # ===============================================================
+    # # ------------------ Блок «Сдача ООО «РН-Ванкор»: ---------------
+    # # ===============================================================
+    # F_vn = master_df.loc[master_df["date"] == n, "volume_vankor"].values
+    # F_suzun_obsh = master_df.loc[master_df["date"] == n, "volume_suzun"].values
+    # F_suzun_vankor = master_df.loc[master_df["date"] == n, "suzun_vankor"].values
+    # V_ctn_suzun_vslu_norm = master_df.loc[master_df["date"] == prev_days, "ctn_suzun_vslu_norm"].values
+    # V_ctn_suzun_vslu = master_df.loc[master_df["date"] == n, "ctn_suzun_vslu"].values
+    # F_tagul_lpu = master_df.loc[master_df["date"] == n, "volume_lodochny"].values
+    # F_tagul_tpu = master_df.loc[master_df["date"] == n, "volume_tagulsk"].values
+    # F_skn = master_df.loc[master_df["date"] == n, "skn"].values
+    # F_vo = master_df.loc[master_df["date"] == n, "volume_vostok_oil"].values
+    #
+    # # Ручной ввод
+    # # if buttom_11:
+    # #     F_bn_vn = int(input("Введите значение F_бн_вн: "))
+    # # if buttom_12:
+    # #     F_suzun = int(input("Введите значение F_suzun: "))
+    # # if buttom_12:
+    # #     F_bp_suzun_vankor = int(input("Введите значение F_bn_suzun_vankor: "))
+    #
+    #
+    #
+    # rn_vankor_result = calculate.rn_vankor(
+    #     F_vn=F_vn, F_suzun_obsh=F_suzun_obsh, F_suzun_vankor=F_suzun_vankor, N=N, day=day,V_ctn_suzun_vslu=V_ctn_suzun_vslu ,V_ctn_suzun_vslu_norm=V_ctn_suzun_vslu_norm,
+    #     F_tagul_lpu=F_tagul_lpu, F_tagul_tpu=F_tagul_tpu, F_skn=F_skn, F_vo=F_vo
+    # )
     # --- вывод результата в excel---
     output_path = "output.xlsx"  # имя выходного файла
     master_df.to_excel(output_path, index=False)

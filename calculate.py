@@ -13,27 +13,9 @@ def _to_float(val):
 # -------------------- СУЗУН -----------------------------------
 # ===============================================================
 def suzun(
-    G_buy_month,
-    G_out_udt_month,
-    N,
-    n,
-    Q_vankor,
-    Q_suzun,
-    Q_vslu,
-    Q_tng,
-    Q_vo,
-    G_payaha,
-    G_suzun_tng,
-    V_suzun_tng_prev,
-    Q_vslu_day,
-    V_upn_suzun_prev,
-    V_suzun_vslu_prev,
-    Q_suzun_day,
-    V_upn_suzun_0,
-    V_suzun_vslu_0,
-    V_suzun_tng_0,
-    K_g_suzun,
-    V_suzun_slu_prev,
+    G_buy_month, G_out_udt_month, N, n, Q_vankor, Q_suzun, Q_vslu, Q_tng, Q_vo, G_payaha,
+    G_suzun_tng, V_suzun_tng_prev, Q_vslu_day, V_upn_suzun_prev, V_suzun_vslu_prev, Q_suzun_day,
+    V_upn_suzun_0, V_suzun_vslu_0, V_suzun_tng_0, K_g_suzun, V_suzun_slu_prev,
 ):
     # Приведение всех данных к скалярам
     G_buy_month = _to_float(G_buy_month)
@@ -105,27 +87,11 @@ def suzun(
     G_suzun_delta = Q_suzun_day - G_suzun_slu - G_suzun_vslu - (V_upn_suzun - V_upn_suzun_prev) + G_payaha
 
     return {
-        "G_buy_day": G_buy_day,
-        "G_out_udt_day": G_out_udt_day,
-        "G_per": G_per,
-        "G_per_month": G_per_month,
-        "Q_vankor_month": Q_vankor_month,
-        "Q_suzun_month": Q_suzun_month,
-        "Q_vslu_month": Q_vslu_month,
-        "Q_tng_month": Q_tng_month,
-        "Q_vo_month": Q_vo_month,
-        "V_suzun_tng": V_suzun_tng,
-        "G_suzun_vslu": G_suzun_vslu,
-        "G_suzun_vslu_month": G_suzun_vslu_month,
-        "V_upn_suzun": V_upn_suzun,
-        "V_suzun_vslu": V_suzun_vslu,
-        "V_suzun_slu_0": V_suzun_slu_0,
-        "V_suzun_slu": V_suzun_slu,
-        "G_suzun_slu": G_suzun_slu,
-        "G_suzun_slu_month": G_suzun_slu_month,
-        "G_suzun": G_suzun,
-        "G_suzun_month": G_suzun_month,
-        "G_suzun_delta": G_suzun_delta,
+        "G_buy_day": G_buy_day, "G_out_udt_day": G_out_udt_day, "G_per": G_per, "G_per_month": G_per_month, "Q_vankor_month": Q_vankor_month,
+        "Q_suzun_month": Q_suzun_month, "Q_vslu_month": Q_vslu_month, "Q_tng_month": Q_tng_month, "Q_vo_month": Q_vo_month,
+        "V_suzun_tng": V_suzun_tng, "G_suzun_vslu": G_suzun_vslu, "G_suzun_vslu_month": G_suzun_vslu_month, "V_upn_suzun": V_upn_suzun,
+        "V_suzun_vslu": V_suzun_vslu, "V_suzun_slu_0": V_suzun_slu_0, "V_suzun_slu": V_suzun_slu, "G_suzun_slu": G_suzun_slu,
+        "G_suzun_slu_month": G_suzun_slu_month, "G_suzun": G_suzun,"G_suzun_month": G_suzun_month, "G_suzun_delta": G_suzun_delta,
     }
 
 
@@ -225,10 +191,9 @@ def lodochny(
     if 900 <= G_sikn_tagul <= 1500:
         alarm = False # заменить на переменную из массива
     else:
-        in_2 = int(input(f"Необходимо откорректировать значение откачки {G_sikn_tagul}"))
-        G_sikn_tagul = in_2
+        G_sikn_tagul = int(input(f"Необходимо откорректировать значение откачки {G_sikn_tagul}"))
         alarm = True # заменить на переменную из массива
-    list_g_skin_tagul. append(G_sikn_tagul)
+    list_g_skin_tagul.append(G_sikn_tagul)
     G_sikn_tagul_month = sum(list_g_skin_tagul)
     # --- 28–29. Откачка в МН Тагульского месторождения ---
     V_tagul = V_tagul_prev
@@ -319,107 +284,130 @@ def CPPN_1 (
         "V_upsv_yu":V_upsv_yu, "V_upsv_s": V_upsv_s, "V_upsv_cps": V_upsv_cps, "V_cppn_1_0": V_cppn_1_0,
         "V_cppn_1": V_cppn_1, "V_lodochny_cps_upsv_yu": V_lodochny_cps_upsv_yu,
     }
-# ===============================================================
-# ------------------ Блок «Сдача ООО «РН-Ванкор»: ---------------
-# ===============================================================
-def rn_vankor (
-        F_vn, F_suzun_obsh, F_suzun_vankor, N, day, V_ctn_suzun_vslu_norm, V_ctn_suzun_vslu, F_tagul_lpu, F_tagul_tpu, F_skn
-):
-    F_vn = _to_float(F_vn)
-    F_suzun_obsh = _to_float(F_suzun_obsh)
-    F_suzun_vankor = _to_float(F_suzun_vankor)
-    V_ctn_suzun_vslu_norm = _to_float(V_ctn_suzun_vslu_norm)
-    V_ctn_suzun_vslu = _to_float(V_ctn_suzun_vslu)
-    F_tagul_lpu = _to_float(F_tagul_lpu)
-    F_tagul_tpu = _to_float(F_tagul_tpu)
-    F_skn = _to_float(F_skn)
-    sum_value = 0
-    F_bp_suzun_vslu=0 # по ид в бизнес плане уст значение 0
-    list_f_vn_bn = []
-    list_f_bn_suzun = []
-    list_f_bn_suzun_vankor = []
-    list_f_bp_suzun_vslu = []
-    list_f_tagul_lpu = []
-    list_f_tagul_tpu = []
-# 40. Определение посуточной сдачи нефти АО «Ванкорнефть» через СИКН № 1209, т/сут:
-    if day <= N-2:
-        F_bn_vn = 50*round(F_vn/N/50)
-    else:
-        value = 50 * round(F_vn / N / 50)
-        F_bn_vn_N = [value for _ in range(N - 2)]
-        F_bn_vn = (F_vn - sum(F_bn_vn_N)) / 2
-    list_f_vn_bn.append(F_bn_vn)
-    F_bn_vn_month = sum(list_f_vn_bn)
-# 41. Определение посуточной сдачи нефти АО «Сузун» (Сузун) через СИКН № 1209, т/сут:
-    F_suzun = F_suzun_obsh - F_suzun_vankor
-    if day < N-2:
-        F_bn_suzun = 50 * round(F_suzun / N / 50)
-    else:
-        value = 50 * round(F_suzun/N / 50)
-        F_bn_suzun_N = [value for _ in range(N - 2)]
-        F_bn_suzun = (F_suzun - sum(F_bn_suzun_N))/2
-    list_f_bn_suzun.append(F_bn_suzun)
-    F_bn_suzun_month = sum(list_f_bn_suzun)
-# 42. Определение посуточной сдачи нефти АО «Сузун» (Ванкор) через СИКН № 1209, т/сут:
-    if F_suzun_vankor < 20000:
-        e = int(input("Введите на сколько дней распределить сдачу нефти: "))
-        last_multiple_day = 0
-        # Находим последний кратный день
-        for days in range(N, 0, -1):
-            if days % e == 0:
-                last_multiple_day = days
-                break
-        # Рассчитываем значения для текущего дня
-        if day % e == 0:
-            if day != last_multiple_day:
-                F_bp_suzun_vankor = 50 * round(F_suzun_vankor / e / 50)
-                sum_value += F_bp_suzun_vankor
-            else:
-                value = F_suzun_vankor - sum_value
-                F_bp_suzun_vankor = 50 * round(value / 50)
-    else:
-        if day <= N - 2:
-            F_bp_suzun_vankor = 50 * round(F_suzun_vankor / N / 50)
-        else:
-            value = 50 * round(F_suzun_vankor / N / 50)
-            F_bp_suzun_vankor_N = [value for _ in range(N - 2)]
-            remaining_value = (F_suzun_vankor - sum(F_bp_suzun_vankor_N))/2
-            F_bp_suzun_vankor = 50 * round(remaining_value / 50)
-    list_f_bn_suzun_vankor.append(F_bp_suzun_vankor)
-    F_bp_suzun_vankor_month = sum(list_f_bn_suzun_vankor)
-# 43. Определение посуточной сдачи нефти АО «Сузун» (ВСЛУ) через СИКН № 1209, т/сут:
-    if V_ctn_suzun_vslu > V_ctn_suzun_vslu_norm+1000:
-        F_bp_suzun_vslu = 1000
-    list_f_bp_suzun_vslu.append(F_bp_suzun_vslu)
-    F_bp_suzun_vslu_month = sum(list_f_bp_suzun_vslu)
-# 44-45 Определение посуточной сдачи нефти ООО «Тагульское» через СИКН № 1209, т/сут
-    if day <= N-2:
-        F_bp_tagul_lpu = 50 * round(F_tagul_lpu / N / 50)
-        F_bp_tagul_tpu = 50 * round(F_tagul_lpu / N / 50)
-    else:
-        value_1 = 50 * round(F_tagul_lpu / N / 50)
-        F_bp_tagul_lpu_N = [value_1 for _ in range(N - 2)]
-        F_bp_tagul_lpu = (F_tagul_lpu - sum(F_bp_tagul_lpu_N))/2
-        value_2 = 50 * round(F_tagul_tpu / N / 50)
-        F_bp_tagul_tpu_N = [value_2 for _ in range(N - 2)]
-        F_bp_tagul_tpu = (F_tagul_tpu - sum(F_bp_tagul_tpu_N))/2
-    list_f_tagul_lpu.append(F_bp_tagul_lpu)
-    list_f_tagul_tpu.append(F_bp_tagul_tpu)
-    F_bp_tagul_lpu_month = sum(list_f_tagul_lpu)
-    F_bp_tagul_tpu_month = sum(list_f_tagul_tpu)
-# 46. Расчет суммарной сдачи ООО «Тагульское» через СИКН № 1209:
-    F_pb_tagul = F_bp_tagul_lpu + F_bp_tagul_tpu
-#  47.	Определение посуточной сдачи нефти ООО «СевКомНефтегаз» через СИКН № 1209, т/сут:
-    if day <= N-2:
-        F_bp_skn = 50 * round(F_skn/N/50)
-    else:
-        value = 50 * round(F_skn/N/50)
-        F_bp_skn_N = [value for _ in range(N - 2)]
-        F_bp_skn = (F_skn - sum(F_bp_skn_N))/2
-# Предусмотреть всю сумму за месяц (конец 47 формулы)
-
-# 48. Определение посуточной сдачи нефти ООО «Восток Ойл» через СИКН № 1209, т/сут:
-
+# # ===============================================================
+# # ------------------ Блок «Сдача ООО «РН-Ванкор»: ---------------
+# # ===============================================================
+# def rn_vankor (
+#         F_vn, F_suzun_obsh, F_suzun_vankor, N, day, V_ctn_suzun_vslu_norm, V_ctn_suzun_vslu, F_tagul_lpu, F_tagul_tpu, F_skn, F_vo
+# ):
+#     F_vn = _to_float(F_vn)
+#     F_suzun_obsh = _to_float(F_suzun_obsh)
+#     F_suzun_vankor = _to_float(F_suzun_vankor)
+#     V_ctn_suzun_vslu_norm = _to_float(V_ctn_suzun_vslu_norm)
+#     V_ctn_suzun_vslu = _to_float(V_ctn_suzun_vslu)
+#     F_tagul_lpu = _to_float(F_tagul_lpu)
+#     F_tagul_tpu = _to_float(F_tagul_tpu)
+#     F_skn = _to_float(F_skn)
+#     F_vo = _to_float(F_vo)
+#     sum_value = 0
+#     F_bp_suzun_vslu=0 # по ид в бизнес плане уст значение 0
+#     list_f_vn_bn = []
+#     list_f_bn_suzun = []
+#     list_f_bn_suzun_vankor = []
+#     list_f_bp_suzun_vslu = []
+#     list_f_tagul_lpu = []
+#     list_f_tagul_tpu = []
+# # 40. Определение посуточной сдачи нефти АО «Ванкорнефть» через СИКН № 1209, т/сут:
+#     if day <= N-2:
+#         F_bn_vn = 50*round(F_vn/N/50)
+#     else:
+#         value = 50 * round(F_vn / N / 50)
+#         F_bn_vn_N = [value for _ in range(N - 2)]
+#         F_bn_vn = (F_vn - sum(F_bn_vn_N)) / 2
+#     list_f_vn_bn.append(F_bn_vn)
+#     F_bn_vn_month = sum(list_f_vn_bn)
+# # 41. Определение посуточной сдачи нефти АО «Сузун» (Сузун) через СИКН № 1209, т/сут:
+#     F_suzun = F_suzun_obsh - F_suzun_vankor
+#     if day <= N-2:
+#         F_bn_suzun = 50 * round(F_suzun / N / 50)
+#     else:
+#         value = 50 * round(F_suzun/N / 50)
+#         F_bn_suzun_N = [value for _ in range(N - 2)]
+#         F_bn_suzun = (F_suzun - sum(F_bn_suzun_N))/2
+#     list_f_bn_suzun.append(F_bn_suzun)
+#     F_bn_suzun_month = sum(list_f_bn_suzun)
+# # 42. Определение посуточной сдачи нефти АО «Сузун» (Ванкор) через СИКН № 1209, т/сут:
+#     if F_suzun_vankor < 20000:
+#         e = int(input("Введите на сколько дней распределить сдачу нефти: "))
+#         last_multiple_day = 0
+#         # Находим последний кратный день
+#         for days in range(N, 0, -1):
+#             if days % e == 0:
+#                 last_multiple_day = days
+#                 break
+#         # Рассчитываем значения для текущего дня
+#         if day % e == 0:
+#             if day != last_multiple_day:
+#                 F_bp_suzun_vankor = 50 * round(F_suzun_vankor / e / 50)
+#                 sum_value += F_bp_suzun_vankor
+#             else:
+#                 F_bp_suzun_vankor = F_suzun_vankor - sum_value
+#     else:
+#         if day <= N - 2:
+#             F_bp_suzun_vankor = 50 * round(F_suzun_vankor / N / 50)
+#         else:
+#             value = 50 * round(F_suzun_vankor / N / 50)
+#             F_bp_suzun_vankor_N = [value for _ in range(N - 2)]
+#             F_bp_suzun_vankor = (F_suzun_vankor - sum(F_bp_suzun_vankor_N))/2
+#     list_f_bn_suzun_vankor.append(F_bp_suzun_vankor)
+#     F_bp_suzun_vankor_month = sum(list_f_bn_suzun_vankor)
+# # 43. Определение посуточной сдачи нефти АО «Сузун» (ВСЛУ) через СИКН № 1209, т/сут:
+#     if V_ctn_suzun_vslu > V_ctn_suzun_vslu_norm+1000:
+#         F_bp_suzun_vslu = 1000
+#     list_f_bp_suzun_vslu.append(F_bp_suzun_vslu)
+#     F_bp_suzun_vslu_month = sum(list_f_bp_suzun_vslu)
+# # 44-45 Определение посуточной сдачи нефти ООО «Тагульское» через СИКН № 1209, т/сут
+#     if day <= N-2:
+#         F_bp_tagul_lpu = 50 * round(F_tagul_lpu / N / 50)
+#         F_bp_tagul_tpu = 50 * round(F_tagul_lpu / N / 50)
+#     else:
+#         value_1 = 50 * round(F_tagul_lpu / N / 50)
+#         F_bp_tagul_lpu_N = [value_1 for _ in range(N - 2)]
+#         F_bp_tagul_lpu = (F_tagul_lpu - sum(F_bp_tagul_lpu_N))/2
+#         value_2 = 50 * round(F_tagul_tpu / N / 50)
+#         F_bp_tagul_tpu_N = [value_2 for _ in range(N - 2)]
+#         F_bp_tagul_tpu = (F_tagul_tpu - sum(F_bp_tagul_tpu_N))/2
+#     list_f_tagul_lpu.append(F_bp_tagul_lpu)
+#     list_f_tagul_tpu.append(F_bp_tagul_tpu)
+#     F_bp_tagul_lpu_month = sum(list_f_tagul_lpu)
+#     F_bp_tagul_tpu_month = sum(list_f_tagul_tpu)
+# # 46. Расчет суммарной сдачи ООО «Тагульское» через СИКН № 1209:
+#     F_pb_tagul = F_bp_tagul_lpu + F_bp_tagul_tpu
+# #  47.	Определение посуточной сдачи нефти ООО «СевКомНефтегаз» через СИКН № 1209, т/сут:
+#     if day <= N-2:
+#         F_bp_skn = 50 * round(F_skn/N/50)
+#     else:
+#         value = 50 * round(F_skn/N/50)
+#         F_bp_skn_N = [value for _ in range(N - 2)]
+#         F_bp_skn = (F_skn - sum(F_bp_skn_N))/2
+# # Предусмотреть всю сумму за месяц (конец 47 формулы)
+#
+# # 48. Определение посуточной сдачи нефти ООО «Восток Ойл» через СИКН № 1209, т/сут:
+#     if F_vo < 20000:
+#         e = int(input("Введите на сколько дней распределить сдачу нефти: "))
+#         last_multiple_day = 0
+#         # Находим последний кратный день
+#         for days in range(N, 0, -1):
+#             if days % e == 0:
+#                 last_multiple_day = days
+#                 break
+#         if day % e == 0:
+#             if day != last_multiple_day:
+#                 F_bp_vo = 50 * round(F_vo/e/50)
+#                 sum_value += F_bp_vo
+#             else:
+#                 F_pb_vo = F_vo - sum_value
+#     else:
+#         if day <= N - 2:
+#             F_bp_vo = 50 * round(F_vo/N/50)
+#         else:
+#             value = 50 * round(F_vo/N/50)
+#             F_bp_vo_N = [value for _ in range(N - 2)]
+#             F_bp_vo = (F_vo - sum(F_bp_vo_N))/2
+#
+#     return {
+#         "Q_tagulsk_month": Q_tagulsk_month,
+#     }
 
 
 
