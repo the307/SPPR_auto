@@ -275,6 +275,6 @@ manual_dfs = {
     "upsv_cps": data_from_pairs(upsv_cps, "upsv_cps"),
     "lodochny_cps_upsv_yu": data_from_pairs(lodochny_cps_upsv_yu, "lodochny_cps_upsv_yu"),
     "ctn_suzun_vslu": data_from_pairs(ctn_suzun_vslu, "ctn_suzun_vslu"),
-    "ctn_suzun_vslu_norm": data_from_pairs(ctn_suzun_vslu, "ctn_suzun_vslu_norm"),
-    "skn": data_from_pairs(ctn_suzun_vslu, "skn"),
+    "ctn_suzun_vslu_norm": data_from_pairs(ctn_suzun_vslu_norm, "ctn_suzun_vslu_norm"),
+    "skn": data_from_pairs(skn, "skn"),
 }
