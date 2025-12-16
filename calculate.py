@@ -15,7 +15,8 @@ def _to_float(val):
 def suzun(
     G_buy_month, G_out_udt_month, N, Q_vankor, Q_suzun, Q_vslu, Q_tng, Q_vo, G_payaha,
     G_suzun_tng, V_suzun_tng_prev, Q_vslu_day, V_upn_suzun_prev, V_suzun_vslu_prev, Q_suzun_day,
-    V_upn_suzun_0, V_suzun_vslu_0, V_suzun_tng_0, K_g_suzun, V_suzun_slu_prev, manual_V_upn_suzun, manual_V_suzun_vslu
+    V_upn_suzun_0, V_suzun_vslu_0, V_suzun_tng_0, K_g_suzun, V_suzun_slu_prev, manual_V_upn_suzun, manual_V_suzun_vslu,G_per_data,
+    G_suzun_vslu_data,G_suzun_slu_data,G_suzun_data
 ):
     # Приведение всех данных к скалярам
     G_buy_month = _to_float(G_buy_month)
@@ -25,6 +26,11 @@ def suzun(
     Q_vslu = np.array(Q_vslu, dtype=float)
     Q_tng = np.array(Q_tng, dtype=float)
     Q_vo = np.array(Q_vo, dtype=float)
+    G_per_data = np.array(G_per_data , dtype=float)
+    G_suzun_vslu_data = np.array(G_suzun_vslu_data, dtype=float)
+    G_suzun_slu_data = np.array(G_suzun_slu_data, dtype=float)
+    G_suzun_data = np.array(G_suzun_data, dtype=float)
+
     Q_vslu_day = _to_float(Q_vslu_day)
     Q_suzun_day = _to_float(Q_suzun_day)
     V_suzun_tng_prev = _to_float(V_suzun_tng_prev)
@@ -34,6 +40,7 @@ def suzun(
     V_suzun_vslu_0 = _to_float(V_suzun_vslu_0)
     V_suzun_tng_0 = _to_float(V_suzun_tng_0)
     V_suzun_slu_prev = _to_float(V_suzun_slu_prev)
+
     N = int(N) if N else 1.0
 
     # --- 1. Суточное значение покупки нефти
@@ -44,7 +51,7 @@ def suzun(
     # --- 3. Расход на переработку (Gпер)
     G_per = G_buy_day - G_out_udt_day
     print(G_per)
-    G_per_month = G_per #Данные должы подягиваться из бд, для суммирования. В дальнейшем добавить на вход функции G_per для суммирования
+    G_per_month = sum(G_per_data)+G_per # данные отражены за 2 месяца (ноябрь, декабрь), чтобы расчет был корректен необходимо выбрадь день расчета и снести ручные данные в manual_data.py до этого дня
 
     # --- 4–8. Суммарные месячные значения
     Q_vankor_month = Q_vankor.sum()
@@ -58,7 +65,7 @@ def suzun(
 
     # --- 10. Откачка нефти Сузун (ВСЛУ)
     G_suzun_vslu = Q_vslu_day
-    G_suzun_vslu_month = G_suzun_vslu #Данные должы подягиваться из бд, для суммирования. В дальнейшем добавить на вход функции G_suzun_vslu для суммирования
+    G_suzun_vslu_month = sum(G_suzun_vslu_data)+G_suzun_vslu # данные отражены за 2 месяца (ноябрь, декабрь), чтобы расчет был корректен необходимо выбрадь день расчета и снести ручные данные в manual_data.py до этого дня
 
     # --- 11–12. Наличие нефти
     if manual_V_upn_suzun is not None:
@@ -76,11 +83,11 @@ def suzun(
 
     # --- 14. Откачка нефти Сузун (СЛУ)
     G_suzun_slu = Q_suzun_day - Q_vslu_day - (V_suzun_slu - V_suzun_slu_prev) - K_g_suzun
-    G_suzun_slu_month = G_suzun_slu #Данные должы подягиваться из бд, для суммирования. В дальнейшем добавить на вход функции G_suzun_slu для суммирования
+    G_suzun_slu_month = G_suzun_slu_data.sum()+G_suzun_slu # данные отражены за 2 месяца (ноябрь, декабрь), чтобы расчет был корректен необходимо выбрадь день расчета и снести ручные данные в manual_data.py до этого дня
 
     # --- 15. Общая откачка нефти Сузун
     G_suzun = G_suzun_vslu + G_suzun_tng + G_suzun_slu
-    G_suzun_month = G_suzun #Данные должы подягиваться из бд, для суммирования. В дальнейшем добавить на вход функции G_suzun для суммирования
+    G_suzun_month = G_suzun_data.sum()+G_suzun # данные отражены за 2 месяца (ноябрь, декабрь), чтобы расчет был корректен необходимо выбрадь день расчета и снести ручные данные в manual_data.py до этого дня
 
     # --- 16. Потери при откачке нефти
     G_suzun_delta = Q_suzun_day - G_suzun_slu - G_suzun_vslu - (V_upn_suzun - V_upn_suzun_prev) + G_payaha
@@ -97,10 +104,10 @@ def suzun(
 # ===============================================================
 # -------------------- ВОСТОК ОЙЛ -------------------------------
 # ===============================================================
-def VO(Q_vo_day):
+def VO(Q_vo_day, G_upn_lodochny_ichem_data, m):
     Q_vo_day = _to_float(Q_vo_day)
     G_upn_lodochny_ichem = Q_vo_day
-    G_upn_lodochny_ichem_month = G_upn_lodochny_ichem #Данные должы подягиваться из бд, для суммирования. В дальнейшем добавить на вход функции G_upn_lodochny_ichem для суммирования
+    G_upn_lodochny_ichem_month = G_upn_lodochny_ichem_data.sum()+G_upn_lodochny_ichem # данные отражены за 2 месяца (ноябрь, декабрь), чтобы расчет был корректен необходимо выбрадь день расчета и снести ручные данные в manual_data.py до этого дня
 
     return {
         "G_upn_lod": G_upn_lodochny_ichem,
@@ -111,18 +118,19 @@ def VO(Q_vo_day):
 # ===============================================================
 # -------------------- КЧНГ -------------------------------------
 # ===============================================================
-def kchng(Q_kchng_day, Q_kchng):
+def kchng(Q_kchng_day, Q_kchng, G_kchng_data):
     Q_kchng = np.array(Q_kchng, dtype=float)
     Q_kchng_day = _to_float(Q_kchng_day)
 
     Q_kchng_month = Q_kchng.sum()
     G_kchng = Q_kchng_day
-    G_kchng_month = Q_kchng_month
+    G_kchng_month = G_kchng_data.sum() + G_kchng # данные отражены за 2 месяца (ноябрь, декабрь), чтобы расчет был корректен необходимо выбрадь день расчета и снести ручные данные в manual_data.py до этого дня
 
     return {
         "Q_kchng_month": Q_kchng_month,
         "G_kchng": G_kchng,
         "G_kchng_month": G_kchng_month,
+        "G_kchng_data":G_kchng_data
     }
 
 
@@ -133,7 +141,8 @@ def lodochny(
     Q_tagul, Q_lodochny, V_upn_lodochny_prev, G_ichem, V_ichem_prev, G_lodochny_ichem,
     Q_tagul_prev_month, G_lodochni_upsv_yu_prev_month, K_otkachki, K_gupn_lodochny, N, Q_vo_day,
     Q_lodochny_day, Q_tagul_day, V_tagul, V_tagul_prev, K_g_tagul, G_kchng, day, manual_V_upn_lodochny, manual_G_sikn_tagul,
-    manual_V_tagul,
+    manual_V_tagul, G_lodochny_uspv_yu_data, G_sikn_tagul_data, G_tagul_data, delte_G_tagul_data,G_lodochny_data, delte_G_upn_lodochny_data,
+    G_tagul_lodochny_data
 ):
     # Преобразование входных данных
     Q_tagul = np.array(Q_tagul, dtype=float)
@@ -176,7 +185,7 @@ def lodochny(
             K_otkachki = K_otkachki_month
     # --- 26. Откачка нефти Лодочного месторождения на УПСВ-Юг ---
     G_lodochny_uspv_yu = Q_lodochny_day * (1 - K_otkachki) - (K_gupn_lodochny / 2)
-    G_lodochny_uspv_yu_month = G_lodochny_uspv_yu # Данные должы подягиваться из бд, для суммирования. В дальнейшем добавить на вход функции G_upn_lodochny_ichem для суммирования
+    G_lodochny_uspv_yu_month = G_lodochny_uspv_yu_data.sum() + G_lodochny_uspv_yu # данные отражены за 2 месяца (ноябрь, декабрь), чтобы расчет был корректен необходимо выбрадь день расчета и снести ручные данные в manual_data.py до этого дня
     # --- 27 расчет откачки нефти
     if manual_G_sikn_tagul is not None:
         G_sikn_tagul = manual_G_sikn_tagul
@@ -191,29 +200,29 @@ def lodochny(
             alarm = False # заменить на переменную из массива
         else:
             G_sikn_tagul = int(input(f"Необходимо откорректировать значение откачки {G_sikn_tagul}"))
-    G_sikn_tagul_month = G_sikn_tagul # Данные должы подягиваться из бд, для суммирования. В дальнейшем добавить на вход функции G_sikn_tagul для суммирования
+    G_sikn_tagul_month = G_sikn_tagul_data.sum()+G_sikn_tagul # данные отражены за 2 месяца (ноябрь, декабрь), чтобы расчет был корректен необходимо выбрадь день расчета и снести ручные данные в manual_data.py до этого дня
     # --- 28–29. Откачка в МН Тагульского месторождения ---
     if manual_V_tagul is not None:
         V_tagul = manual_V_tagul
     else:
         V_tagul = V_tagul_prev
     G_tagul = Q_tagul_day - (V_tagul - V_tagul_prev) - K_g_tagul
-    G_tagul_month = G_tagul # Данные должы подягиваться из бд, для суммирования. В дальнейшем добавить на вход функции G_tagul_month для суммирования
+    G_tagul_month = G_tagul_data.sum()+G_tagul # данные отражены за 2 месяца (ноябрь, декабрь), чтобы расчет был корректен необходимо выбрадь день расчета и снести ручные данные в manual_data.py до этого дня
 
     # --- 30. Потери ---
     delte_G_tagul = Q_tagul_day - G_tagul - (V_tagul - V_tagul_prev)
-    delte_G_tagul_month = delte_G_tagul # Данные должы подягиваться из бд, для суммирования. В дальнейшем добавить на вход функции delte_G_tagul для суммирования
+    delte_G_tagul_month = delte_G_tagul_data.sum()+delte_G_tagul # данные отражены за 2 месяца (ноябрь, декабрь), чтобы расчет был корректен необходимо выбрадь день расчета и снести ручные данные в manual_data.py до этого дня
 
     # --- 31–32. Откачка нефти в МН ---
     G_upn_lodochny = Q_lodochny_day * K_otkachki - (V_upn_lodochny-V_upn_lodochny_prev) - (K_gupn_lodochny / 2) + Q_vo_day
     G_lodochny = G_upn_lodochny - G_ichem
-    G_lodochny_month = G_lodochny # Данные должы подягиваться из бд, для суммирования. В дальнейшем добавить на вход функции G_lodochny для суммирования
+    G_lodochny_month = G_lodochny_data.sum()+G_lodochny # данные отражены за 2 месяца (ноябрь, декабрь), чтобы расчет был корректен необходимо выбрадь день расчета и снести ручные данные в manual_data.py до этого дня
 
     # --- 33–34. Сводные потери и суммарная откачка ---
     delte_G_upn_lodochny = Q_lodochny_day + Q_vo_day - G_lodochny_uspv_yu - G_lodochny - (V_upn_lodochny - V_upn_lodochny_prev)
-    G_upn_lodochny_month = delte_G_upn_lodochny # Данные должы подягиваться из бд, для суммирования. В дальнейшем добавить на вход функции delte_G_upn_lodochny для суммирования
+    G_upn_lodochny_month = delte_G_upn_lodochny_data.sum() + delte_G_upn_lodochny # данные отражены за 2 месяца (ноябрь, декабрь), чтобы расчет был корректен необходимо выбрадь день расчета и снести ручные данные в manual_data.py до этого дня
     G_tagul_lodochny = G_tagul + G_upn_lodochny + G_kchng
-    G_tagul_lodochny_month = G_tagul_lodochny # Данные должы подягиваться из бд, для суммирования. В дальнейшем добавить на вход функции G_lodochny для суммирования
+    G_tagul_lodochny_month = G_tagul_lodochny_data.sum()+G_tagul_lodochny # данные отражены за 2 месяца (ноябрь, декабрь), чтобы расчет был корректен необходимо выбрадь день расчета и снести ручные данные в manual_data.py до этого дня
 
     return {
         "Q_tagulsk_month": Q_tagulsk_month, "Q_lodochny_month": Q_lodochny_month, "V_upn_lodochny": V_upn_lodochny,
@@ -231,7 +240,7 @@ def lodochny(
 def CPPN_1 (
     V_upsv_yu_prev, V_upsv_s_prev, V_upsv_cps_prev, V_upsv_yu_0, V_upsv_s_0, V_upsv_cps_0,
     V_upsv_yu, V_upsv_s, V_upsv_cps,  V_lodochny_cps_upsv_yu_prev, G_lodochni_upsv_yu,
-    G_sikn_tagul, flag_list, manual_V_upsv_yu, manual_V_upsv_s, manual_V_upsv_cps
+    G_sikn_tagul, flag_list, manual_V_upsv_yu, manual_V_upsv_s, manual_V_upsv_cps,
 ):
     V_upsv_yu_prev=_to_float(V_upsv_yu_prev)
     V_upsv_s_prev = _to_float(V_upsv_s_prev)
@@ -295,9 +304,11 @@ def rn_vankor(
     F_vn, F_suzun_obsh, F_suzun_vankor, N, day,
     V_ctn_suzun_vslu_norm, V_ctn_suzun_vslu,
     F_tagul_lpu, F_tagul_tpu, F_skn, F_vo,
-    manual_F_bn_vn, manual_F_bn_suzun, manual_F_bp_suzun_vankor,
+    manual_F_bp_vn, manual_F_bp_suzun, manual_F_bp_suzun_vankor,
     manual_F_bp_tagul_lpu, manual_F_bp_tagul_tpu, manual_F_bp_skn,
-    manual_F_pb_vo, manual_F_bp_suzun_vslu
+    manual_F_bp_vo, manual_F_bp_suzun_vslu, F_kchng,F_bp_data,manual_F_kchng, F_bp_vn_data,
+    F_bp_suzun_data,F_bp_suzun_vankor_data, F_bp_suzun_vslu_data, F_bp_tagul_lpu_data,F_bp_tagul_tpu_data,
+    F_bp_skn_data,F_bp_vo_data,F_bp_kchng_data
 ):
 
     # ---------- Приведение типов ----------
@@ -310,35 +321,39 @@ def rn_vankor(
     F_tagul_tpu = _to_float(F_tagul_tpu)
     F_skn = _to_float(F_skn)
     F_vo = _to_float(F_vo)
+    F_kchng = _to_float(F_kchng)
 
     # ---------- Инициализация  ----------
     F_bp_suzun_vankor = 0 # для расчета с e если дата не попадет в диапозон где дата должна быть кратной e выведет число 0
     F_bp_suzun_vslu = 0 # для расчета с e если дата не попадет в диапозон где дата должна быть кратной e выведет число 0
     F_bp_vo = 0 # для расчета с e если дата не попадет в диапозон где дата должна быть кратной e выведет число 0
+    F_bp_kchng = 0# для расчета с e если дата не попадет в диапозон где дата должна быть кратной e выведет число 0
+    alarm_first_10_days = False
+    alarm_first_10_days_msg = None
     # =========================================================
     # 40. Ванкорнефть
-    if manual_F_bn_vn is not None:
-        F_bn_vn = manual_F_bn_vn
+    if manual_F_bp_vn is not None:
+        F_bp_vn = manual_F_bp_vn
     else:
         base = round((F_vn / N) / 50) * 50
         if day < N:
-            F_bn_vn = base
+            F_bp_vn = base
         else:
-            F_bn_vn = F_vn - base * (N - 1)
-    F_bn_vn_month = F_vn
+            F_bp_vn = F_vn - base * (N - 1)
+    F_bp_vn_month = F_bp_vn_data.sum()+F_bp_vn # данные отражены за 2 месяца (ноябрь, декабрь), чтобы расчет был корректен необходимо выбрадь день расчета и снести ручные данные в manual_data.py до этого дня
 
     # =========================================================
     # 41. Сузун (общий)
     F_suzun = F_suzun_obsh - F_suzun_vankor
-    if manual_F_bn_suzun is not None:
-        F_bn_suzun = manual_F_bn_suzun
+    if manual_F_bp_suzun is not None:
+        F_bp_suzun = manual_F_bp_suzun
     else:
         base = round((F_suzun / N) / 50) * 50
         if day < N:
-            F_bn_suzun = base
+            F_bp_suzun = base
         else:
-            F_bn_suzun = F_suzun - base * (N - 1)
-    F_bn_suzun_month = F_bn_suzun
+            F_bp_suzun = F_suzun - base * (N - 1)
+    F_bp_suzun_month = F_bp_suzun_data.sum()+F_bp_suzun # данные отражены за 2 месяца (ноябрь, декабрь), чтобы расчет был корректен необходимо выбрадь день расчета и снести ручные данные в manual_data.py до этого дня
 
     # =========================================================
     # 42. Сузун → Ванкор (через e)
@@ -362,7 +377,7 @@ def rn_vankor(
             F_bp_suzun_vankor = base
         else:
             F_bp_suzun_vankor = (F_suzun_vankor - base * (N - 2))/2
-    F_bp_suzun_vankor_month = F_bp_suzun_vankor
+    F_bp_suzun_vankor_month = F_bp_suzun_vankor_data.sum()+F_bp_suzun_vankor # данные отражены за 2 месяца (ноябрь, декабрь), чтобы расчет был корректен необходимо выбрадь день расчета и снести ручные данные в manual_data.py до этого дня
 
     # =========================================================
     # 43. Сузун → ВСЛУ
@@ -370,7 +385,7 @@ def rn_vankor(
         F_bp_suzun_vslu = manual_F_bp_suzun_vslu
     elif V_ctn_suzun_vslu > V_ctn_suzun_vslu_norm + 1000:
         F_bp_suzun_vslu = 1000
-    F_bp_suzun_vslu_month = F_bp_suzun_vslu
+    F_bp_suzun_vslu_month = F_bp_suzun_vslu_data.sum()+F_bp_suzun_vslu # данные отражены за 2 месяца (ноябрь, декабрь), чтобы расчет был корректен необходимо выбрадь день расчета и снести ручные данные в manual_data.py до этого дня
 
     # =========================================================
     # 44. Тагульское — ЛПУ
@@ -383,7 +398,7 @@ def rn_vankor(
         else:
             F_bp_tagul_lpu = (F_tagul_lpu - base * (N - 2))/2
 
-    F_bp_tagul_lpu_month = F_bp_tagul_lpu
+    F_bp_tagul_lpu_month = F_bp_tagul_lpu_data.sum()+F_bp_tagul_lpu # данные отражены за 2 месяца (ноябрь, декабрь), чтобы расчет был корректен необходимо выбрадь день расчета и снести ручные данные в manual_data.py до этого дня
 
     # =========================================================
     # 45. Тагульское — ТПУ
@@ -396,7 +411,7 @@ def rn_vankor(
         else:
             F_bp_tagul_tpu = (F_tagul_tpu - base * (N - 2))/2
 
-    F_bp_tagul_tpu_month = F_bp_tagul_tpu
+    F_bp_tagul_tpu_month = F_bp_tagul_tpu_data.sum()+F_bp_tagul_tpu# данные отражены за 2 месяца (ноябрь, декабрь), чтобы расчет был корректен необходимо выбрадь день расчета и снести ручные данные в manual_data.py до этого дня
 
     # =========================================================
     # 47. СКН
@@ -405,12 +420,12 @@ def rn_vankor(
     else:
         base = round((F_skn / N) / 50) * 50
         F_bp_skn = base if day < (N-2) else (F_skn - base * (N - 1))/2
-    F_bp_skn_month = F_bp_skn
+    F_bp_skn_month = F_bp_skn_data.sum()+F_bp_skn # данные отражены за 2 месяца (ноябрь, декабрь), чтобы расчет был корректен необходимо выбрадь день расчета и снести ручные данные в manual_data.py до этого дня
 
     # =========================================================
     # 48. Восток Ойл (через e)
-    if manual_F_pb_vo is not None:
-        F_bp_vo = manual_F_pb_vo
+    if manual_F_bp_vo is not None:
+        F_bp_vo = manual_F_bp_vo
     elif F_vo < 20000:
         e = int(input("Введите e (периодичность сдачи): "))
         delivery_days = [d for d in range(1, N + 1) if d % e == 0]
@@ -427,28 +442,53 @@ def rn_vankor(
     else:
         base = round((F_vo / N) / 50) * 50
         F_bp_vo = base if day < N else F_vo - base * (N - 1)
+    F_bp_vo_month = F_bp_vo_data.sum()+F_bp_vo# данные отражены за 2 месяца (ноябрь, декабрь), чтобы расчет был корректен необходимо выбрадь день расчета и снести ручные данные в manual_data.py до этого дня
+    """
+    Для формулы 49 уточнить Knраб 
+    """
+    F_bp_tng = 0 # в дальнейшим заменить расчетной формулой
+    # =========================================================
+    #  50.	Определение посуточной сдачи нефти ООО «КЧНГ» через СИКН № 1209, т/сут:
+    if manual_F_kchng is not None:
+        F_kchng = manual_F_kchng
+    elif F_kchng < 20000:
+        e = int(input("Введите e (периодичность сдачи): "))
+        delivery_days = [d for d in range(1, N + 1) if d % e == 0]
+        if delivery_days:
+            delivery_count = len(delivery_days)
+            last_day = delivery_days[-1]
+            base = round((F_kchng / delivery_count) / 50) * 50
 
-    F_bp_vo_month = F_bp_vo
-
+            if day in delivery_days:
+                if day != last_day:
+                    F_bp_kchng = base
+                else:
+                    F_bp_kchng = (F_kchng - base * (delivery_count - 2))/2
+    else:
+        base = round((F_vo / N) / 50) * 50
+        F_bp_kchng = base if day < N else F_kchng - base * (N - 1)
+    F_bp_kchng_month = F_bp_kchng_data.sum()+F_bp_kchng# данные отражены за 2 месяца (ноябрь, декабрь), чтобы расчет был корректен необходимо выбрадь день расчета и снести ручные данные в manual_data.py до этого дня
+    # 51.	Расчет суммарной сдачи через СИКН № 1209:
+    F_bp = F_bp_vn + F_bp_tagul_lpu + F_bp_tagul_lpu + F_bp_suzun_vankor + F_bp_suzun_vslu + F_bp_skn + F_bp_vo + F_bp_tng + F_bp_kchng
+    F_bp_month = sum(F_bp_data)+F_bp # данные отражены за 2 месяца (ноябрь, декабрь), чтобы расчет был корректен необходимо выбрадь день расчета и снести ручные данные в manual_data.py до этого дня
+    F_bp_sr = F_bp_month/N
+    if F_bp_data[:10].sum() < F_bp_sr:
+        alarm_first_10_days = True
+        alarm_first_10_days_msg = (
+            "Сдача нефти за первые 10 суток меньше "
+            "среднесуточного значения за месяц"
+        )
     return {
-        "F_bn_vn": F_bn_vn,
-        "F_bn_vn_month": F_bn_vn_month,
-        "F_bn_suzun": F_bn_suzun,
-        "F_bn_suzun_month": F_bn_suzun_month,
-        "F_bp_suzun_vankor": F_bp_suzun_vankor,
-        "F_bp_suzun_vankor_month": F_bp_suzun_vankor_month,
-        "F_bp_suzun_vslu": F_bp_suzun_vslu,
-        "F_bp_suzun_vslu_month": F_bp_suzun_vslu_month,
-        "F_bp_tagul_lpu": F_bp_tagul_lpu,
-        "F_bp_tagul_lpu_month": F_bp_tagul_lpu_month,
-        "F_bp_tagul_tpu": F_bp_tagul_tpu,
-        "F_bp_tagul_tpu_month": F_bp_tagul_tpu_month,
-        "F_bp_skn": F_bp_skn,
-        "F_bp_skn_month": F_bp_skn_month,
-        "F_bp_vo": F_bp_vo,
-        "F_bp_vo_month": F_bp_vo_month,
+        "F_bp_vn": F_bp_vn, "F_bp_vn_month": F_bp_vn_month, "F_bp_suzun": F_bp_suzun, "F_bp_suzun_month": F_bp_suzun_month,
+        "F_bp_suzun_vankor": F_bp_suzun_vankor, "F_bp_suzun_vankor_month": F_bp_suzun_vankor_month, "F_bp_suzun_vslu": F_bp_suzun_vslu,
+        "F_bp_suzun_vslu_month": F_bp_suzun_vslu_month, "F_bp_tagul_lpu": F_bp_tagul_lpu, "F_bp_tagul_lpu_month": F_bp_tagul_lpu_month,
+        "F_bp_tagul_tpu": F_bp_tagul_tpu, "F_bp_tagul_tpu_month": F_bp_tagul_tpu_month, "F_bp_skn": F_bp_skn, "F_bp_skn_month": F_bp_skn_month,
+        "F_bp_vo": F_bp_vo, "F_bp_vo_month": F_bp_vo_month, "F_bp_kchng":F_bp_kchng, "F_bp_kchng_month":F_bp_kchng_month, "F_bp": F_bp,
+        "F_bp_month":F_bp_month, "F_bp_sr":F_bp_sr,    "__alarm_first_10_days": alarm_first_10_days, "__alarm_first_10_days_msg": alarm_first_10_days_msg
     }
 
-
+# ===============================================================
+# ------------------ Блок «Сдача ООО «РН-Ванкор»: ---------------
+# ===============================================================
 
 

@@ -7,6 +7,7 @@ from data_prep import (
     prepare_lodochny_data, prepare_cppn1_data, prepare_rn_vankor_data
 )
 from inputs import get_suzun_inputs, get_lodochny_inputs, get_cppn_1_inputs, get_rn_vankor_inputs
+from excel_export import export_to_excel
 
 def assign_results_to_master(master_df, n, results):
     """Безопасно записывает результаты в master_df (берёт скаляр из массива)."""
@@ -46,7 +47,7 @@ def main():
     master_df = assign_results_to_master(master_df, n, suzun_results)
 
     # -------------------- ВОСТОК ОЙЛ -------------------------------
-    vo_data = prepare_vo_data(master_df, n)
+    vo_data = prepare_vo_data(master_df, n, m)
     vo_results = calculate.VO(**vo_data)
     master_df = assign_results_to_master(master_df, n, vo_results)
 
@@ -72,12 +73,14 @@ def main():
     rn_data = prepare_rn_vankor_data(master_df, n, prev_days, N, day,m)
     rn_vankor_inputs = get_rn_vankor_inputs()
     rn_vankor_result = calculate.rn_vankor(**rn_data, **rn_vankor_inputs)
+    alarm_flag = rn_vankor_result.pop("__alarm_first_10_days", False)
+    alarm_msg = rn_vankor_result.pop("__alarm_first_10_days_msg", None)
     master_df = assign_results_to_master(master_df, n, rn_vankor_result)
 
     # --- вывод результата в excel---
-    output_path = "output.xlsx"  # имя выходного файла
-    master_df.to_excel(output_path, index=False)
-    print(f"Результат сохранён в {output_path}")
+    output_path = "output.xlsx"
+    export_to_excel(master_df=master_df, output_path=output_path, calc_date=n, alarm_flag=alarm_flag, alarm_msg=alarm_msg, month_column_name="F_bp_month"
+    )
 
 
 if __name__ == "__main__":

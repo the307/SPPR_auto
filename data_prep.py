@@ -16,6 +16,11 @@ def prepare_suzun_data(master_df, n, m, prev_days, prev_month, N):
     Q_vslu = master_df.loc[master_df["date"].dt.month == m, "gtm_vslu"].values
     Q_tng = master_df.loc[master_df["date"].dt.month == m, "gtm_taymyr"].values
     Q_vo = master_df.loc[master_df["date"].dt.month == m, "gtm_vostok"].values
+    G_per_data = master_df.loc[master_df["date"].dt.month == m, "G_per_data"].values
+    G_suzun_vslu_data = master_df.loc[master_df["date"].dt.month == m, "G_suzun_vslu_data"].values
+    G_suzun_slu_data = master_df.loc[master_df["date"].dt.month == m, "G_suzun_slu_data"].values
+    G_suzun_data = master_df.loc[master_df["date"].dt.month == m, "G_suzun_data"].values
+
     # --- Данные за текущий день ---
     Q_vslu_day = master_df.loc[master_df["date"] == n, "gtm_vslu"].values
     Q_suzun_day = master_df.loc[master_df["date"] == n, "gtm_suzun"].values
@@ -38,6 +43,10 @@ def prepare_suzun_data(master_df, n, m, prev_days, prev_month, N):
         "Q_vslu": Q_vslu,
         "Q_tng": Q_tng,
         "Q_vo": Q_vo,
+        "G_per_data":G_per_data,
+        "G_suzun_vslu_data":G_suzun_vslu_data,
+        "G_suzun_data":G_suzun_data,
+        "G_suzun_slu_data":G_suzun_slu_data,
         "V_suzun_tng_prev": V_suzun_tng_prev,
         "Q_vslu_day": Q_vslu_day,
         "V_upn_suzun_prev": V_upn_suzun_prev,
@@ -51,15 +60,19 @@ def prepare_suzun_data(master_df, n, m, prev_days, prev_month, N):
     }
 
 
-def prepare_vo_data(master_df, n):
+def prepare_vo_data(master_df, n, m):
     Q_vo_day = master_df.loc[master_df["date"] == n, "gtm_vostok"].values
-    return {"Q_vo_day": Q_vo_day}
+    G_upn_lodochny_ichem_data = master_df.loc[master_df["date"].dt.month == m, "G_upn_lodochny_ichem_data"].values
+
+    return {"Q_vo_day": Q_vo_day, "G_upn_lodochny_ichem_data": G_upn_lodochny_ichem_data, "m":m}
 
 
 def prepare_kchng_data(master_df, n, m):
     Q_kchng = master_df.loc[master_df["date"].dt.month == m, "kchng"].values if "kchng" in master_df.columns else np.array([])
     Q_kchng_day = master_df.loc[master_df["date"] == n, "kchng"].values if "kchng" in master_df.columns else np.array([])
-    return {"Q_kchng_day": Q_kchng_day, "Q_kchng": Q_kchng}
+    G_kchng_data = master_df.loc[master_df["date"].dt.month == m, "G_kchng_data"].values
+
+    return {"Q_kchng_day": Q_kchng_day, "Q_kchng": Q_kchng, "G_kchng_data":G_kchng_data}
 
 
 def prepare_lodochny_data(master_df, n, m, prev_days, prev_month, N, day, kchng_results):
@@ -75,6 +88,13 @@ def prepare_lodochny_data(master_df, n, m, prev_days, prev_month, N, day, kchng_
     G_lodochny_ichem = master_df.loc[master_df["date"] == n, "lodochny_ichem"].values
     V_tagul = master_df.loc[master_df["date"] == n, "tagul"].values
     V_tagul_prev = master_df.loc[master_df["date"] == prev_days, "tagul"].values
+    G_lodochny_uspv_yu_data = master_df.loc[master_df["date"].dt.month == m, "G_lodochny_uspv_yu_data"].values
+    G_sikn_tagul_data = master_df.loc[master_df["date"].dt.month == m, "G_sikn_tagul_data"].values
+    G_tagul_data = master_df.loc[master_df["date"].dt.month == m, "G_tagul_data"].values
+    delte_G_tagul_data = master_df.loc[master_df["date"].dt.month == m, "delte_G_tagul_data"].values
+    G_lodochny_data = master_df.loc[master_df["date"].dt.month == m, "G_lodochny_data"].values
+    delte_G_upn_lodochny_data = master_df.loc[master_df["date"].dt.month == m, "delte_G_upn_lodochny_data"].values
+    G_tagul_lodochny_data = master_df.loc[master_df["date"].dt.month == m, "G_tagul_lodochny_data"].values
 
     return {
         "Q_tagul": Q_tagulsk,
@@ -91,7 +111,14 @@ def prepare_lodochny_data(master_df, n, m, prev_days, prev_month, N, day, kchng_
         "V_tagul": V_tagul,
         "V_tagul_prev": V_tagul_prev,
         "G_kchng": kchng_results.get("G_kchng", 0),
-        "day": day
+        "day": day,
+        "G_lodochny_uspv_yu_data":G_lodochny_uspv_yu_data,
+        "G_sikn_tagul_data":G_sikn_tagul_data,
+        "G_tagul_data":G_tagul_data,
+        "delte_G_tagul_data":delte_G_tagul_data,
+        "G_lodochny_data":G_lodochny_data,
+        "delte_G_upn_lodochny_data":delte_G_upn_lodochny_data,
+        "G_tagul_lodochny_data":G_tagul_lodochny_data
     }
 
 
@@ -135,6 +162,17 @@ def prepare_rn_vankor_data(master_df, n, prev_days, N, day,m):
     F_tagul_tpu = master_df.loc[master_df["date"].dt.month == m, "volume_tagulsk"].values
     F_skn = master_df.loc[master_df["date"] == n, "skn"].values
     F_vo = master_df.loc[master_df["date"].dt.month == m, "volume_vostok_oil"].values
+    F_kchng = master_df.loc[master_df["date"].dt.month == m, "volum_kchng"].values
+    F_bp_data = master_df.loc[master_df["date"].dt.month == m, "F_bp_data"].values
+    F_bp_vn_data = master_df.loc[master_df["date"].dt.month == m, "F_bp_vn_data"].values
+    F_bp_suzun_data = master_df.loc[master_df["date"].dt.month == m, "F_bp_suzun_data"].values
+    F_bp_suzun_vankor_data = master_df.loc[master_df["date"].dt.month == m, "F_bp_suzun_vankor_data"].values
+    F_bp_suzun_vslu_data = master_df.loc[master_df["date"].dt.month == m, "F_bp_suzun_vslu_data"].values
+    F_bp_tagul_lpu_data = master_df.loc[master_df["date"].dt.month == m, "F_bp_tagul_lpu_data"].values
+    F_bp_tagul_tpu_data = master_df.loc[master_df["date"].dt.month == m, "F_bp_tagul_tpu_data"].values
+    F_bp_skn_data = master_df.loc[master_df["date"].dt.month == m, "F_bp_skn_data"].values
+    F_bp_vo_data = master_df.loc[master_df["date"].dt.month == m, "F_bp_vo_data"].values
+    F_bp_kchng_data = master_df.loc[master_df["date"].dt.month == m, "F_bp_kchng_data"].values
 
     return {
         "F_vn": F_vn,
@@ -147,5 +185,16 @@ def prepare_rn_vankor_data(master_df, n, prev_days, N, day,m):
         "F_tagul_lpu": F_tagul_lpu,
         "F_tagul_tpu": F_tagul_tpu,
         "F_skn": F_skn,
-        "F_vo": F_vo
+        "F_vo": F_vo,
+        "F_kchng": F_kchng,
+        "F_bp_data":F_bp_data,
+        "F_bp_vn_data":F_bp_vn_data,
+        "F_bp_suzun_data":F_bp_suzun_data,
+        "F_bp_suzun_vankor_data":F_bp_suzun_vankor_data,
+        "F_bp_suzun_vslu_data":F_bp_suzun_vslu_data,
+        "F_bp_tagul_lpu_data":F_bp_tagul_lpu_data,
+        "F_bp_tagul_tpu_data":F_bp_tagul_tpu_data,
+        "F_bp_skn_data":F_bp_skn_data,
+        "F_bp_vo_data":F_bp_vo_data,
+        "F_bp_kchng_data":F_bp_kchng_data,
     }

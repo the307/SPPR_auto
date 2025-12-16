@@ -63,21 +63,22 @@ def get_cppn_1_inputs():
     }
 def get_rn_vankor_inputs():
     """Централизует input() для блока rn_vankor."""
-    manual_F_bn_vn = input("Введите manual_F_bn_vn (Enter — оставить по предыдущим суткам): ")
-    manual_F_bn_suzun = input("Введите manual_F_bn_suzun (Enter — оставить по предыдущим суткам): ")
+    manual_F_bp_vn = input("Введите manual_F_bn_vn (Enter — оставить по предыдущим суткам): ")
+    manual_F_bp_suzun = input("Введите manual_F_bn_suzun (Enter — оставить по предыдущим суткам): ")
     manual_F_bp_suzun_vankor = input("Введите manual_F_bp_suzun_vankor (Enter — оставить по предыдущим суткам): ")
     manual_F_bp_tagul_tpu = input("Введите manual_F_bp_tagul_tpu (Enter — оставить по предыдущим суткам): ")
     manual_F_bp_tagul_lpu = input("Введите manual_F_bp_tagul_lpu (Enter — оставить по предыдущим суткам): ")
     manual_F_bp_skn = input("Введите manual_F_bp_skn (Enter — оставить по предыдущим суткам): ")
-    manual_F_pb_vo = input("Введите manual_F_pb_vo (Enter — оставить по предыдущим суткам): ")
+    manual_F_bp_vo = input("Введите manual_F_pb_vo (Enter — оставить по предыдущим суткам): ")
     manual_F_bp_suzun_vslu = input("Введите manual_F_pb_vo (Enter — оставить по предыдущим суткам): ")
+    manual_F_kchng = input("Введите manual_F_kchng (Enter — оставить по предыдущим суткам): ")
 
     return {
-        "manual_F_bn_vn": (
-            float(manual_F_bn_vn) if manual_F_bn_vn.strip() != "" else None
+        "manual_F_bp_vn": (
+            float(manual_F_bp_vn) if manual_F_bp_vn.strip() != "" else None
         ),
-        "manual_F_bn_suzun": (
-            float(manual_F_bn_suzun) if manual_F_bn_suzun.strip() != "" else None
+        "manual_F_bp_suzun": (
+            float(manual_F_bp_suzun) if manual_F_bp_suzun.strip() != "" else None
         ),
         "manual_F_bp_suzun_vankor": (
             float(manual_F_bp_suzun_vankor) if manual_F_bp_suzun_vankor.strip() != "" else None
@@ -91,10 +92,14 @@ def get_rn_vankor_inputs():
         "manual_F_bp_skn": (
             float(manual_F_bp_skn) if manual_F_bp_skn.strip() != "" else None
         ),
-        "manual_F_pb_vo": (
-            float(manual_F_pb_vo) if manual_F_pb_vo.strip() != "" else None
+        "manual_F_bp_vo": (
+            float(manual_F_bp_vo) if manual_F_bp_vo.strip() != "" else None
         ),
         "manual_F_bp_suzun_vslu": (
             float(manual_F_bp_suzun_vslu) if manual_F_bp_suzun_vslu.strip() != "" else None
         ),
+        "manual_F_kchng": (
+            float(manual_F_kchng) if manual_F_kchng.strip() != "" else None
+        )
+
     }
