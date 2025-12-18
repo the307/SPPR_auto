@@ -4,7 +4,7 @@ import calculate
 from loader import build_all_data, get_day
 from data_prep import (
     prepare_suzun_data, prepare_vo_data, prepare_kchng_data,
-    prepare_lodochny_data, prepare_cppn1_data, prepare_rn_vankor_data ,prepare_sikn_1208_data
+    prepare_lodochny_data, prepare_cppn1_data, prepare_rn_vankor_data ,prepare_sikn_1208_data, prepare_TSTN_data, get_TSTN_inputs
 )
 from inputs import get_suzun_inputs, get_lodochny_inputs, get_cppn_1_inputs, get_rn_vankor_inputs,get_sikn_1208_inputs
 from excel_export import export_to_excel
@@ -82,6 +82,11 @@ def main():
     sikn_1208_inputs =get_sikn_1208_inputs()
     sikn_1208_results = calculate.sikn_1208(**sikn_1208_data,**sikn_1208_inputs)
     master_df = assign_results_to_master(master_df, n, sikn_1208_results)
+    # -------------------- Блок «СИКН №1208» ----------------------------
+    TSTN_data = prepare_TSTN_data(master_df, n,prev_days,prev_month,m,N,sikn_1208_results,lodochny_results,kchng_results,suzun_results)
+    TSTN_inputs = get_TSTN_inputs()
+    TSTN_results = calculate.TSTN(**TSTN_data, **TSTN_inputs)
+    master_df = assign_results_to_master(master_df, n, TSTN_results)
     # --- вывод результата в excel---
     output_path = "output.xlsx"
     export_to_excel(master_df=master_df, output_path=output_path, calc_date=n, alarm_flag=alarm_flag, alarm_msg=alarm_msg, month_column_name="F_bp_month"

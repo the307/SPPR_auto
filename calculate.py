@@ -231,7 +231,7 @@ def lodochny(
         "delte_G_tagul": delte_G_tagul, "delte_G_tagul_month": delte_G_tagul_month, "G_upn_lodochny": G_upn_lodochny,
         "G_lodochny": G_lodochny, "G_lodochny_month": G_lodochny_month, "delte_G_upn_lodochny": delte_G_upn_lodochny,
         "G_upn_lodochny_month": G_upn_lodochny_month, "G_tagul_lodochny": G_tagul_lodochny, "G_tagul_lodochny_month": G_tagul_lodochny_month,
-        "G_tagul_month":G_tagul_month,
+        "G_tagul_month":G_tagul_month,"G_tagul":G_tagul
     }
 
 # ===============================================================
@@ -261,6 +261,8 @@ def CPPN_1 (
         V_upsv_yu = V_upsv_yu_prev
     if not flag_list[0]:
         if V_upsv_yu_prev-1500 <= V_upsv_yu <= V_upsv_yu_prev+1500:
+            V_upsv_yu = V_upsv_yu
+        else:
             V_upsv_yu = int(input("Введите корректное заначение для V_upsv_yu"))
     else:
         if V_upsv_yu_prev-2000 <= V_upsv_yu <= V_upsv_yu_prev+4000:
@@ -272,6 +274,8 @@ def CPPN_1 (
         V_upsv_s = V_upsv_s_prev
     if not flag_list[1]:
         if V_upsv_s_prev-1500 <= V_upsv_s <= V_upsv_s_prev+1500:
+            V_upsv_s:V_upsv_s
+        else:
             V_upsv_s = int(input("Введите корректное заначение для V_upsv_s"))
     else:
         if V_upsv_s_prev-1500 <= V_upsv_s <= V_upsv_s_prev+2000:
@@ -283,6 +287,8 @@ def CPPN_1 (
         V_upsv_cps = V_upsv_cps_prev
     if not flag_list[2]:
         if V_upsv_cps_prev - 1500 <= V_upsv_cps <= V_upsv_cps_prev + 1500:
+            V_upsv_cps = V_upsv_cps
+        else:
             V_upsv_cps = int(input("Введите корректное заначение для V_upsv_cps"))
     else:
         if V_upsv_cps_prev - 2000 <= V_upsv_cps <= V_upsv_cps_prev + 3300:
@@ -493,7 +499,7 @@ def rn_vankor(
 def sikn_1208 (
     G_suzun_vslu, G_suzun_sikn_data, G_sikn_tagul_lod_data, G_buy_day, G_per, G_suzun, G_sikn_suzun_data, G_suzun_tng_data,
     G_suzun_tng, Q_vankor, V_upsv_yu, V_upsv_s, V_upsv_cps, V_upsv_yu_prev, V_upsv_s_prev, V_upsv_cps_prev,G_lodochny_uspv_yu,
-    K_delte_g_sikn, G_sikn_data, G_sikn_vankor_data, V_cppn_1, V_cppn_1_prev, G_skn_data
+    K_delte_g_sikn, G_sikn_data, G_sikn_vankor_data, V_cppn_1, G_skn_data
 ):
     G_suzun_vslu = _to_float(G_suzun_vslu)
     G_buy_day = _to_float(G_buy_day)
@@ -531,7 +537,74 @@ def sikn_1208 (
     G_delta_sikn = Q_vankor + G_suzun + G_lodochny_uspv_yu - G_sikn - (V_cppn_1 - V_cppn_1_prev) + G_buy_day - G_per
     return {
         "G_sikn_vslu":G_sikn_vslu, "G_sikn_vslu_month":G_sikn_vslu_month, "G_sikn_tagul":G_sikn_tagul, "G_sikn_suzun":G_sikn_suzun,
-        "G_sikn_suzun_month":G_sikn_suzun_month, "G_sikn_tng":G_sikn_tng, "G_sikn_tng_month":G_sikn_tng_month, "G_sikn":G_sikn,
+        "G_sikn_suzun_month":G_sikn_suzun_month, "G_sikn_tng":G_sikn_tng, "G_sikn_tng_month":G_sikn_tng_month, "G_sikn":G_sikn, "G_sikn_month":G_sikn_month,
         "G_sikn_vankor":G_sikn_vankor, "G_sikn_vankor_month":G_sikn_vankor_month, "G_skn_month":G_skn_month, "G_delta_sikn":G_delta_sikn,
     }
 
+def TSTN (
+        V_gnsp_0,V_gnsp_prev, N, VN_min_gnsp, G_sikn, G_gpns_data, flag_list, V_nps_1_prev, V_nps_2_prev, G_tagul, G_upn_lodochny, G_skn, G_kchng,
+        V_knps_prev, V_nps_1_0, V_nps_2_0, V_knps_0, G_suzun_vslu, K_suzun, V_tstn_vslu_prev
+          ):
+    F = 0 # не понятно откуда переменная
+    F_suzun_vslu = 0 # по умолчанию
+# 61.	Расчет откачки нефти с ГНПС, т/сут:
+    G_gpns_i = G_sikn + (V_gnsp_0 - VN_min_gnsp)/N
+    G_gpns_month = G_gpns_data.sum() + G_gpns_i
+    G_gpns = G_gpns_month/N
+# 62.	Расчет наличия нефти в РП ГНПС, т:
+    V_gnsp = V_gnsp_prev + G_sikn - G_gpns
+    if not flag_list[0]:
+        if V_gnsp_prev-1500 <= V_gnsp <= V_gnsp_prev+1500:
+            V_gnsp = V_gnsp
+        else:
+            V_gnsp = int(input("Введите корректное значение для V_gnsp"))
+    else:
+        if V_gnsp_prev - 2000 <= V_gnsp <= V_gnsp_prev + 3000:
+            V_gnsp = V_gnsp
+        else:
+            V_gnsp = int(input("Введите корректное значение для V_gnsp"))
+# 63.	Расчет наличия нефти в РП НПС-1, т:
+    V_nps_1 = V_nps_1_prev
+    if not flag_list[1]:
+        if V_nps_1_prev - 700 <= V_nps_1 <= V_nps_1_prev + 700:
+            V_nps_1 = V_nps_1
+        else:
+            V_nps_1 = int(input("Введите корректное значение для V_nps_1"))
+    else:
+        if V_nps_1_prev - 2000 <= V_nps_1 <= V_nps_1_prev + 4000:
+            V_nps_1 = V_nps_1
+        else:
+            V_nps_1 = int(input("Введите корректное значение для V_nps_1"))
+# 64.	Расчет наличия нефти в РП НПС-2, т:
+    V_nps_2 = V_nps_2_prev
+    if not flag_list[1]:
+        if V_nps_2_prev - 700 <= V_nps_2 <= V_nps_2_prev + 700:
+            V_nps_2 = V_nps_2
+        else:
+            V_nps_2 = int(input("Введите корректное значение для V_nps_1"))
+    else:
+        if V_nps_2_prev - 2000 <= V_nps_2 <= V_nps_2_prev + 4000:
+            V_nps_2 = V_nps_2
+        else:
+            V_nps_2 = int(input("Введите корректное значение для V_nps_1"))
+#65.	Расчет наличия нефти в РП КНПС
+    V_knsp = (G_gpns - F + V_knps_prev + G_tagul + G_upn_lodochny + G_skn + G_kchng) - (V_nps_2 - V_nps_2_prev) - (V_nps_1-V_nps_1_prev)
+    if not flag_list[2]:
+        if V_knps_prev - 1500 <= V_knsp <= V_knps_prev + 1500:
+            V_knsp = V_knsp
+        else:
+            V_knsp = int(input("Введите корректное значение для V_nps_1"))
+    else:
+        if V_knps_prev - 2000 <= V_knsp <= V_knps_prev + 3000:
+            V_knsp = V_knsp
+        else:
+            V_knsp = int(input("Введите корректное значение для V_knsp"))
+# 66.	Расчет суммарного наличия нефти в резервуарах ЦТН, т:
+    V_tstn_0 = V_gnsp_0 + V_nps_1_0 + V_nps_2_0 + V_knps_0
+    V_tstn = V_gnsp_prev + V_nps_1_prev + V_nps_2_prev + V_knps_prev
+# 67.	Расчет наличия нефти АО «Сузун» (ВСЛУ) в резервуарах ЦТН, т:
+    V_tstn_vslu = V_tstn_vslu_prev - F_suzun_vslu + G_suzun_vslu - F_suzun_vslu * K_suzun/100
+    return {
+        "G_gpns_i":G_gpns_i, "G_gpns_month":G_gpns_month, "G_gpns":G_gpns, "V_gnsp":V_gnsp, "V_nps_1":V_nps_1, "V_nps_2":V_nps_2, "V_knsp":V_knsp,
+        "V_tstn_0":V_tstn_0, "V_tstn":V_tstn,
+    }

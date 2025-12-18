@@ -108,3 +108,8 @@ def get_sikn_1208_inputs():
     return{
         "K_delte_g_sikn":K_delte_g_sikn,
     }
+def get_TSTN_inputs():
+    K_suzun = float(input("Введите K_сузун: "))
+    return {
+        "K_suzun":K_suzun,
+    }
