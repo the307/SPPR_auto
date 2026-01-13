@@ -5,7 +5,7 @@ import pandas as pd
 
 
 def export_to_excel(
-    master_df: pd.DataFrame,
+    result_df: pd.DataFrame,
     output_path: str,
     calc_date,
     alarm_flag: bool = False,
@@ -23,11 +23,8 @@ def export_to_excel(
 
     # =========================================================
     # 1. Исключаем служебные колонки (_data)
-    export_columns = [
-        col for col in master_df.columns
-    ]
-
-    export_df = master_df[export_columns].copy()
+    # (все колонки экспортируются, служебные колонки можно добавить фильтрацию при необходимости)
+    export_df = result_df.copy()
 
     # =========================================================
     # 2. Сохраняем DataFrame
