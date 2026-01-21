@@ -9,17 +9,27 @@ from data_prep import (
     prepare_cppn1_data,
     prepare_rn_vankor_data,
     prepare_sikn_1208_data,
-    prepare_TSTN_data
-)
+    prepare_tstn_data,
+    prepare_tstn_precalc_data,
+    rn_vankor_check_data,
+    rn_vankor_auto_balance_data,
+    plan_sdacha_data,
+    balance_po_business_plan_data,
+    plan_balance_gtm_data,
+)   
 from inputs import (
     get_suzun_inputs,
     get_lodochny_inputs,
     get_cppn_1_inputs,
     get_rn_vankor_inputs,
     get_sikn_1208_inputs,
-    get_TSTN_inputs
+    get_TSTN_inputs,
+    get_plan_balance_gtm_inputs,
+    get_balance_po_business_inputs,
+
 )
 from export import export_to_json
+from error_handler import handle_error
 from datetime import timedelta
 import calendar
 
@@ -38,9 +48,11 @@ def main():
 
         master_df["date"] = pd.to_datetime(master_df["date"]).dt.normalize()
 
-        dates = get_day()
-        # get_day() возвращает datetime объекты, конвертируем в pandas Timestamp и нормализуем
-        dates = [pd.Timestamp(d).normalize() for d in dates]
+        dates = sorted(master_df["date"].dropna().unique().tolist())
+        if not dates:
+            dates = get_day()
+            # get_day() возвращает datetime объекты, конвертируем в pandas Timestamp и нормализуем
+            dates = [pd.Timestamp(d).normalize() for d in dates]
 
         # ------------------------------------------------------------------
         # 2. Ручные вводы (ОДИН РАЗ)
@@ -51,17 +63,19 @@ def main():
         rn_vankor_inputs = get_rn_vankor_inputs()
         sikn_1208_inputs = get_sikn_1208_inputs()
         TSTN_inputs = get_TSTN_inputs()
-
+        plan_balance_gtm_inputs = get_plan_balance_gtm_inputs()
+        balance_po_business_inputs = get_balance_po_business_inputs()
         # ------------------------------------------------------------------
         # 3. Аккумулятор результатов
         # ------------------------------------------------------------------
-        result_rows = []
         alarm_flag = False
         alarm_msg = None
 
         # ------------------------------------------------------------------
         # 4. Основной цикл по дням
         # ------------------------------------------------------------------
+        last_context = {}
+        print(master_df)
         for n in dates:
             m = n.month
             prev_day = n - timedelta(days=1)
@@ -97,11 +111,9 @@ def main():
             day_result.update(cppn1_results)
 
             # -------------------- РН-ВАНКОР --------------------------------
-            rn_data = prepare_rn_vankor_data(master_df, n, prev_day, N, n.day, m, lodochny_results)
+            rn_data = prepare_rn_vankor_data(master_df, n, prev_day, N, n.day, m)
             rn_results = calculate.rn_vankor(**rn_data, **rn_vankor_inputs)
 
-            alarm_flag = rn_results.pop("__alarm_first_10_days", alarm_flag)
-            alarm_msg = rn_results.pop("__alarm_first_10_days_msg", alarm_msg)
             day_result.update(rn_results)
 
             # -------------------- СИКН-1208 --------------------------------
@@ -109,48 +121,117 @@ def main():
             sikn_1208_data = prepare_sikn_1208_data(master_df, n, m, prev_month, suzun_results, lodochny_results, G_suzun_tng, cppn1_results)
             sikn_1208_results = calculate.sikn_1208(**sikn_1208_data, **sikn_1208_inputs)
             day_result.update(sikn_1208_results)
+            # -------------------- Блок «Сдача ООО «РН-Ванкор» (автобаланс)-------------------------------------
+            G_ichem = lodochny_inputs["G_ichem"]
+            G_suzun_tng = suzun_inputs["G_suzun_tng"]
+            tstn_precalc_data = prepare_tstn_precalc_data(
+                master_df,
+                prev_day,
+                N,
+                sikn_1208_results,
+                lodochny_results,
+                suzun_results,
+                rn_results,
+                TSTN_inputs,
+            )
+            tstn_precalc_results = calculate.tstn_precalc(**tstn_precalc_data)
+            auto_balance_data = rn_vankor_auto_balance_data(master_df, n, prev_day, N, rn_results, suzun_results, TSTN_inputs, tstn_precalc_results, lodochny_results, kchng_results, G_ichem, G_suzun_tng)
+            auto_balance_results = calculate.rn_vankor_balance(**auto_balance_data)
+            day_result.update(auto_balance_results)
             # -------------------- ТСТН -------------------------------------
             G_ichem = lodochny_inputs["G_ichem"]
+            tstn_data = prepare_tstn_data(master_df, N, prev_day, sikn_1208_results, lodochny_results, kchng_results, suzun_results, G_ichem, G_suzun_tng, auto_balance_results, tstn_precalc_results)
+            tstn_results = calculate.TSTN(**tstn_data, **TSTN_inputs)
+            day_result.update(tstn_results)
 
-            TSTN_data = prepare_TSTN_data(master_df, n, prev_day, prev_month, m, N, sikn_1208_results, lodochny_results, kchng_results, suzun_results, G_ichem, G_suzun_tng,)
-            TSTN_results = calculate.TSTN(**TSTN_data, **TSTN_inputs)
-            day_result.update(TSTN_results)
+            # -------------------- Блок «Сдача ООО «РН-Ванкор» (проверка) -------------------------------------
+            check_data = rn_vankor_check_data(master_df, n, prev_day, tstn_results, lodochny_results, suzun_results, cppn1_results, auto_balance_results)
+            check_data_results = calculate.rn_vankor_check(**check_data)
+            day_result.update(check_data_results)
+
+            # Сохраняем контекст последнего дня для расчётов после цикла
+            last_context = {
+                "n": n,
+                "m": m,
+                "prev_day": prev_day,
+                "prev_month": prev_month,
+                "cppn1_results": cppn1_results,
+                "tstn_results": tstn_results,
+                "suzun_results": suzun_results,
+                "lodochny_results": lodochny_results,
+            }
+
             # -------------------- СОХРАНЕНИЕ ДНЯ ---------------------------
-            result_rows.append(day_result)
+            # обновляем master_df
+            day_mask = master_df["date"] == n
+            if day_mask.any():
+                for key, value in day_result.items():
+                    if key == "date":
+                        continue
+                    master_df.loc[day_mask, key] = value
+            else:
+                master_df = pd.concat([master_df, pd.DataFrame([day_result])], ignore_index=True)
 
-        # ------------------------------------------------------------------
-        # 5. Итоговый DataFrame
-        # ------------------------------------------------------------------
-        result_df = pd.DataFrame(result_rows)
-        result_df.sort_values("date", inplace=True)
-        result_df.reset_index(drop=True, inplace=True)
+        master_df.sort_values("date", inplace=True)
+        master_df.reset_index(drop=True, inplace=True)
+
+        # -------------------- Сравнение плановой сдачи нефти с бизнес планом (после расчёта всех дней) --------------------
+        if last_context:
+            last_n = last_context["n"]
+            last_prev_day = last_context["prev_day"]
+            last_prev_month = last_context["prev_month"]
+
+            plan_sdacha_inputs = plan_sdacha_data(master_df, last_n)
+            plan_sdacha_result = calculate.plan_sdacha(**plan_sdacha_inputs)
+
+            business_plan_data = balance_po_business_plan_data(master_df, last_n)
+            business_plan_result = calculate.balance_po_business_plan(**business_plan_data,**balance_po_business_inputs)
+
+            K_vankor = TSTN_inputs["K_vankor"]
+            K_suzun = TSTN_inputs["K_suzun"]
+            K_tagul = TSTN_inputs["K_tagul"]
+            plan_gtm_data = plan_balance_gtm_data(
+                master_df,
+                last_n,
+                last_context["cppn1_results"],
+                last_context["tstn_results"],
+                last_context["suzun_results"],
+                last_context["lodochny_results"],
+                K_vankor,
+                K_suzun,
+                K_tagul,
+            )
+            plan_gtm_result = calculate.plan_balance_gtm(**plan_gtm_data, **plan_balance_gtm_inputs)
+
+            last_mask = master_df["date"] == last_n
+            if last_mask.any():
+                for key, value in {
+                    **plan_sdacha_result,
+                    **business_plan_result,
+                    **plan_gtm_result,
+                }.items():
+                    master_df.loc[last_mask, key] = value
+
     except calculate.CalculationValidationError as exc:
         error_info = {
             "code": "K_OTKACHKI_MISMATCH",
             "message": str(exc),
         }
     except Exception as exc:
+        import traceback
         error_info = {
             "code": "UNEXPECTED_CALCULATION_ERROR",
-            "message": str(exc),
+            "message": f"{exc}\n{traceback.format_exc()}",
         }
 
-    if error_info:
-        export_to_json(
-            master_df=None,
-            output_path="output.json",
-            calc_date=None,
-            alarm_flag=False,
-            alarm_msg=None,
-            error=error_info,
-        )
+    if handle_error(error_info, output_path="output.json"):
         return
 
     # ------------------------------------------------------------------
     # 6. Экспорт в JSON
     # ------------------------------------------------------------------
     export_to_json(
-        master_df=result_df,
+        master_df=master_df,
         output_path="output.json",
         calc_date=dates[-1],
         alarm_flag=alarm_flag,
