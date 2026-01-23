@@ -342,14 +342,15 @@ def rn_vankor(
     # =========================================================
     # 41. Сузун (общий)
     F_suzun = F_suzun_obsh - F_suzun_vankor
+
     if manual_F_bp_suzun is not None:
         F_bp_suzun = manual_F_bp_suzun
     else:
         base = round((F_suzun / N) / 50) * 50
-        if day < (N-2):
+        if day <= (N-2):
             F_bp_suzun = base
         else:
-            F_bp_suzun = F_suzun - (base * (N - 2))/2
+            F_bp_suzun = (F_suzun - base * (N - 2))/2
     F_bp_suzun_month = float(F_bp_suzun_month_prev or 0) + F_bp_suzun
 
     # =========================================================
@@ -773,7 +774,6 @@ def TSTN (
 
     V_tstn_suzun = V_tstn_suzun_prev - F_suzun + G_suzun_slu - F_suzun * (K_suzun/100)
     V_tstn_suzun_out = V_tstn_suzun
-    print(f"{V_tstn_suzun_prev}-{F_suzun}-{G_suzun_slu}-{F_suzun * (K_suzun/100)}")
 
     if not (2000 <= V_tstn_suzun <= 6000):
         V_tstn_suzun_out = {
@@ -826,6 +826,7 @@ def TSTN (
 
 # 73.	Расчет наличия нефти ООО «КЧНГ» (Русско-Реченское месторождение) в резервуарах ЦТН, т:
     V_tstn_kchng = V_tstn_kchng_prev + G_kchng - F_kchng - F_kchng * (K_tagul/100)
+    # Значение по умолчанию, чтобы всегда было определено
     V_tstn_kchng_out = V_tstn_kchng
     if not (1000 <= V_tstn_kchng <= 6000):
         V_tstn_kchng_out = {
@@ -872,6 +873,17 @@ def TSTN (
             ),
         }
 
+    V_tstn_tagul_obch = V_tstn_tagul + V_tstn_lodochny
+    if not (3000 <= V_tstn_tagul_obch <= 11000):
+        V_tstn_tagul_out = {
+            "value": V_tstn_tagul_obch,
+            "status": 1,
+            "message": (
+                f"ЦТН-Тагульское: уровень вне допустимой вилки 3000 … 11000т "
+                f"(текущее {V_tstn_tagul_obch:.2f})"
+            ),
+        }
+    
     # 77. Расчет наличия нефти ООО «РН-Ванкор» в резервуарах ЦТН (мертвые остатки в резервуарах), т:
 
 # 78.	Расчет наличия нефти АО «Ванкорнефть» в резервуарах ЦТН, т:
@@ -935,7 +947,7 @@ def rn_vankor_balance (
         + (F_bp_suzun or 0)
     )
 
-    # Default to previous-day values when flag_sost is off
+    # Базовые значения на случай flag_sost = 0
     V_upn_suzun = V_upn_suzun_prev
     V_upn_lodochny = V_upn_lodochny_prev
     V_upsv_yu = V_upsv_yu_prev
@@ -1836,7 +1848,8 @@ def rn_vankor_check(
             V_tstn_kchng_out.update({"status": 3, "message": msg})
 
 # --- 96. Проверка соблюдения нормативных значений насосного оборудования ГНПС
-    Q_gnps = G_gnps / (p_gnps / 100 * 24)
+    Q_gnps = G_gnps / p_gnps / 24
+
     Q_gnps_out = {"value": Q_gnps, "status": 0, "message": ""}
     if Q_gnps < Q_gnps_min_1:
         msg = "Расход нефти на насосы ГНПС ниже минимально допустимого значения. Необходимо увеличить (ручным вводом) откачку нефти с ГНПС (столбец BE) до нужного значения"
@@ -1849,7 +1862,7 @@ def rn_vankor_check(
     else:
         Q_gnps_out.update({"status": 2, "message": "Режим работы насосного оборудования 2-2-2. Рекомендуется перераспределить объемы перекачиваемой нефти."})
     # --- 97. Проверка соблюдения нормативных значений насосного оборудования ГНПС
-    Q_nps_1_2 = (G_gnps + G_tagul_lodochny + V_nps_1 - V_nps_1_prev + V_nps_2 - V_nps_2_prev) / (p_nps_1_2 / 100 * 24)
+    Q_nps_1_2 = (G_gnps + G_tagul_lodochny + V_nps_1 - V_nps_1_prev + V_nps_2 - V_nps_2_prev) / p_nps_1_2 / 24
     Q_nps_1_2_out = {"value": Q_nps_1_2, "status": 0, "message": ""}
     if Q_nps_1_2 < Q_nps_1_2_min_1:
         msg = "Расход нефти на насосы НПС-1, НПС-2 ниже минимально допустимого значения. Необходимо увеличить (ручным вводом) откачку нефти с ГНПС (столбец BE) до нужного значения"
@@ -1862,7 +1875,7 @@ def rn_vankor_check(
     else:
         Q_nps_1_2_out.update({"status": 2, "message": "Режим работы насосного оборудования 2-2-2. Рекомендуется перераспределить объемы перекачиваемой нефти."})
     # --- 98. Проверка соблюдения нормативных значений насосного оборудования КНПС
-    Q_knps = F / (p_knps / 100 * 24)
+    Q_knps = F / p_knps / 24
     Q_knps_out = {"value": Q_knps, "status": 0, "message": ""}
     if Q_knps < Q_knps_min_1:
         msg = "Расход нефти на насосы КНПС ниже минимально допустимого значения. Необходимо увеличить (ручным вводом) сдачу нефти через СИКН-1209 (столбцы BX-CH) до нужного значения "

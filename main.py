@@ -180,17 +180,17 @@ def main():
             check_data_results = calculate.rn_vankor_check(**check_data)
             day_result.update(check_data_results)
 
-            # Сохраняем контекст последнего дня для расчётов после цикла
-            last_context = {
-                "n": n,
-                "m": m,
-                "prev_day": prev_day,
-                "prev_month": prev_month,
-                "cppn1_results": cppn1_results,
-                "tstn_results": tstn_results,
-                "suzun_results": suzun_results,
-                "lodochny_results": lodochny_results,
-            }
+            # # Сохраняем контекст последнего дня для расчётов после цикла
+            # last_context = {
+            #     "n": n,
+            #     "m": m,
+            #     "prev_day": prev_day,
+            #     "prev_month": prev_month,
+            #     "cppn1_results": cppn1_results,
+            #     "tstn_results": tstn_results,
+            #     "suzun_results": suzun_results,
+            #     "lodochny_results": lodochny_results,
+            # }
 
             # -------------------- СОХРАНЕНИЕ ДНЯ ---------------------------
             # обновляем master_df
@@ -199,6 +199,9 @@ def main():
                 for key, value in day_result.items():
                     if key == "date":
                         continue
+                    if isinstance(value, dict):
+                        if key in master_df.columns and master_df[key].dtype != "object":
+                            master_df[key] = master_df[key].astype("object")
                     master_df.loc[day_mask, key] = value
             else:
                 master_df = pd.concat([master_df, pd.DataFrame([day_result])], ignore_index=True)

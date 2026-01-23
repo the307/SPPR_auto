@@ -28,10 +28,16 @@ def _get_const(master_df, column_name, default=0.0):
 
 def _to_scalar(val):
     """Безопасно извлекает скаляр из массива/списка/скаляра."""
+    if isinstance(val, dict):
+        if "value" in val:
+            return _to_scalar(val["value"])
+        return 0.0
     if isinstance(val, (list, np.ndarray)):
         if len(val) == 0:
             return 0.0
-        return float(val[0])
+        return _to_scalar(val[0])
+    if pd.isna(val):
+        return 0.0
     try:
         return float(val)
     except (TypeError, ValueError):
@@ -192,7 +198,7 @@ def prepare_cppn1_data(master_df, n, prev_days,  lodochny_results):
 
 def prepare_rn_vankor_data(master_df, n, prev_days, N, day, m):
     F_vn = _get_day_value(master_df, "F_vn", n, scalar=True)
-    F_suzun_obsh = _get_day_value(master_df, "F_suzun", n, scalar=True)
+    F_suzun_obsh = _get_day_value(master_df, "F_suzun_obsh", n, scalar=True)
     F_suzun_vankor = _get_day_value(master_df, "F_suzun_vankor", n, scalar=True)
     F_bp_data = _get_month_values(master_df, "F_bp", m).tolist()
     V_tstn_suzun_vslu_norm = _get_const(master_df, "V_tstn_suzun_vslu_norm")
