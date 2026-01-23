@@ -88,12 +88,16 @@ def build_all_data() -> pd.DataFrame:
     end_of_month = data.get("end_of_month", {}) or {}
     manual_corrections = data.get("manual_corrections", {}) or {}
 
-    master_df = _build_df_from_by_date(by_date)
-    if not master_df.empty:
-        dates = master_df["date"].tolist()
-    else:
-        dates = get_day()
-        master_df = pd.DataFrame({"date": dates})
+    dates = get_day()
+    master_df = pd.DataFrame({"date": dates})
+
+    by_date_df = pd.DataFrame()
+    if by_date:
+        by_date_df = _build_df_from_by_date(by_date)
+        if not by_date_df.empty:
+            by_date_month_df = by_date_df[by_date_df["date"].isin(master_df["date"])]
+            if not by_date_month_df.empty:
+                master_df = master_df.merge(by_date_month_df, on="date", how="left")
 
     if monthly_data:
         monthly_df = _build_df_from_monthly(monthly_data, dates).drop(columns=["date"])
@@ -113,6 +117,41 @@ def build_all_data() -> pd.DataFrame:
 
     master_df = _apply_manual_corrections(master_df, manual_corrections)
     master_df["date"] = pd.to_datetime(master_df["date"], errors="coerce").dt.normalize()
+
+    if not by_date_df.empty:
+        first_day = master_df["date"].min()
+        prev_day = pd.to_datetime(first_day).normalize() - timedelta(days=1)
+        prev_day_row = by_date_df[by_date_df["date"] == prev_day]
+        if not prev_day_row.empty:
+            for col in prev_day_row.columns:
+                if col == "date":
+                    continue
+                if col not in master_df.columns:
+                    master_df[col] = 0.0
+            row = {}
+            first_row = master_df.iloc[0] if len(master_df) else pd.Series(dtype=float)
+            for col in master_df.columns:
+                if col == "date":
+                    continue
+                # Для предыдущего дня:
+                # - списковые месячные данные (по дням) не переносим
+                # - скалярные месячные параметры оставляем
+                if col in monthly_data and col in first_row.index:
+                    val = monthly_data[col]
+                    if isinstance(val, (list, tuple, np.ndarray)):
+                        row[col] = 0.0
+                    else:
+                        row[col] = first_row[col]
+                else:
+                    row[col] = 0.0
+            row["date"] = prev_day
+            prev_values = prev_day_row.iloc[0]
+            for col in prev_day_row.columns:
+                if col == "date":
+                    continue
+                val = prev_values[col]
+                row[col] = 0.0 if pd.isna(val) else val
+            master_df = pd.concat([pd.DataFrame([row]), master_df], ignore_index=True)
 
     # Проверяем на None/NaN: при наличии — выбрасываем ошибку с перечнем колонок/строк
     if master_df.isna().any().any():

@@ -30,11 +30,16 @@ def get_suzun_inputs():
 def get_lodochny_inputs():
     """Загрузка параметров LODOCHNY из JSON."""
     data = _section("lodochny")
+    g_ichem = data.get("G_ichem", 0)
+    if not isinstance(g_ichem, (list, tuple)):
+        g_ichem = float(g_ichem)
     return {
-        "G_ichem": float(data.get("G_ichem", 0)),
+        "G_ichem": g_ichem,
         "K_otkachki": float(data.get("K_otkachki", 0)),
         "K_gupn_lodochny": float(data.get("K_gupn_lodochny", 0)),
         "K_g_tagul": float(data.get("K_g_tagul", 0)),
+        "Q_tagul_prev_month": float(data.get("Q_tagul_prev_month", 0)),
+        "G_lodochni_upsv_yu_prev_month": float(data.get("G_lodochni_upsv_yu_prev_month", 0)),
         "manual_V_upn_lodochny": data.get("manual_V_upn_lodochny"),
         "manual_G_sikn_tagul": data.get("manual_G_sikn_tagul"),
         "manual_V_tagul": data.get("manual_V_tagul"),
@@ -70,18 +75,24 @@ def get_rn_vankor_inputs():
 
 def get_sikn_1208_inputs():
     data = _section("sikn_1208")
+    g_skn = data.get("G_skn", 0)
+    if not isinstance(g_skn, (list, tuple)):
+        g_skn = float(g_skn)
     return {
         "K_delte_g_sikn": float(data.get("K_delte_g_sikn", 0)),
-        "G_skn": float(data.get("G_skn", 0)),
+        "G_skn": g_skn,
     }
 
 
 def get_TSTN_inputs():
     data = _section("tstn")
+    g_skn = data.get("G_skn", 0)
+    if not isinstance(g_skn, (list, tuple)):
+        g_skn = float(g_skn)
     return {
         "K_suzun": float(data.get("K_suzun", 0)),
         "K_vankor": float(data.get("K_vankor", 0)),
-        "G_skn": float(data.get("G_skn", 0)),
+        "G_skn": g_skn,
         "K_skn": float(data.get("K_skn", 0)),
         "K_ichem": float(data.get("K_ichem", 0)),
         "K_payaha": float(data.get("K_payaha", 0)),
@@ -99,7 +110,7 @@ def get_balance_po_business_inputs():
         "G_vn_fill": float(data.get("G_vn_fill", 0)),
         "G_vn_release_rn_drillig": float(data.get("G_vn_release_rn_drillig", 0)),
         "G_vn_release_well_service": float(data.get("G_vn_release_well_service", 0)),
-        "V_suzun_lost_transport_vankor": float(data.get("G_vn_release_well_service", 0)),
+        "V_suzun_lost_transport_vankor": float(data.get("V_suzun_lost_transport_vankor", 0)),
         "V_vo_lost_condensate": float(data.get("V_vo_lost_condensate", 0)),
         "G_vo_fuel": float(data.get("G_vo_fuel", 0)),
         "G_vo_fill": float(data.get("G_vo_fill", 0)),
@@ -142,5 +153,5 @@ def get_plan_balance_gtm_inputs():
         "Q_tagul_gtm_condensate": float(data.get("Q_tagul_gtm_condensate", 0)),
         "G_tagul_gtm_fuel": float(data.get("G_tagul_gtm_fuel", 0)),
         "G_tagul_gtm_release_russko_rechenskoe": float(data.get("G_tagul_gtm_release_russko_rechenskoe", 0)),
-        "K_tagul_minig": float(data.get("G_tagul_gtm_release_russko_rechenskoe", 0)),
+        "K_tagul_minig": float(data.get("K_tagul_minig", 0)),
     }

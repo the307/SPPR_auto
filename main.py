@@ -1,4 +1,9 @@
+import os
+import runpy
+from pathlib import Path
+
 import pandas as pd
+import warnings
 import calculate
 from loader import build_all_data, get_day
 from data_prep import (
@@ -31,6 +36,16 @@ from inputs import (
 from export import export_to_json
 from error_handler import handle_error
 from datetime import timedelta
+from pandas.errors import PerformanceWarning
+
+# Заглушка от предупреждений pandas
+warnings.filterwarnings(
+    "ignore",
+    category=UserWarning,
+    message="Parsing dates in %Y-%m-%d format when dayfirst=True was specified.*",
+)
+warnings.filterwarnings("ignore", category=PerformanceWarning)
+warnings.filterwarnings("ignore", category=FutureWarning)
 import calendar
 
 
@@ -48,11 +63,8 @@ def main():
 
         master_df["date"] = pd.to_datetime(master_df["date"]).dt.normalize()
 
-        dates = sorted(master_df["date"].dropna().unique().tolist())
-        if not dates:
-            dates = get_day()
-            # get_day() возвращает datetime объекты, конвертируем в pandas Timestamp и нормализуем
-            dates = [pd.Timestamp(d).normalize() for d in dates]
+        # Всегда работаем с текущим месяцем
+        dates = [pd.Timestamp(d).normalize() for d in get_day()]
 
         # ------------------------------------------------------------------
         # 2. Ручные вводы (ОДИН РАЗ)
@@ -91,22 +103,26 @@ def main():
             day_result.update(suzun_results)
 
             # -------------------- ВОСТОК ОЙЛ -------------------------------
-            vo_data = prepare_vo_data(master_df, n)
+            vo_data = prepare_vo_data(master_df, n, prev_day)
             vo_results = calculate.VO(**vo_data)
             day_result.update(vo_results)
 
             # -------------------- КЧНГ -------------------------------------
-            kchng_data = prepare_kchng_data(master_df, n, m)
+            kchng_data = prepare_kchng_data(master_df, n, m, prev_day)
             kchng_results = calculate.kchng(**kchng_data)
             day_result.update(kchng_results)
 
             # -------------------- ЛОДОЧНЫЙ ---------------------------------
             lodochny_data = prepare_lodochny_data(master_df, n, m, prev_day, prev_month, N, n.day, kchng_results)
-            lodochny_results = calculate.lodochny(**lodochny_data, **lodochny_inputs)
+            g_ichem = lodochny_inputs["G_ichem"]
+            if isinstance(g_ichem, (list, tuple)):
+                idx = n.day - 1
+                g_ichem = g_ichem[idx] if idx < len(g_ichem) else g_ichem[-1]
+            lodochny_results = calculate.lodochny(**lodochny_data, **{**lodochny_inputs, "G_ichem": g_ichem})
             day_result.update(lodochny_results)
 
             # -------------------- ЦППН-1 -----------------------------------
-            cppn1_data = prepare_cppn1_data(master_df, n, prev_day, prev_month, lodochny_results)
+            cppn1_data = prepare_cppn1_data(master_df, n, prev_day, lodochny_results)
             cppn1_results = calculate.CPPN_1(**cppn1_data, **cppn_1_inputs)
             day_result.update(cppn1_results)
 
@@ -117,12 +133,27 @@ def main():
             day_result.update(rn_results)
 
             # -------------------- СИКН-1208 --------------------------------
+            g_skn = sikn_1208_inputs["G_skn"]
+            if isinstance(g_skn, (list, tuple)):
+                idx = n.day - 1
+                g_skn = g_skn[idx] if idx < len(g_skn) else g_skn[-1]
+            sikn_1208_inputs_day = {**sikn_1208_inputs, "G_skn": g_skn}
+            tstn_inputs_day = {**TSTN_inputs, "G_skn": g_skn}
+
             G_suzun_tng = suzun_inputs["G_suzun_tng"]
-            sikn_1208_data = prepare_sikn_1208_data(master_df, n, m, prev_month, suzun_results, lodochny_results, G_suzun_tng, cppn1_results)
-            sikn_1208_results = calculate.sikn_1208(**sikn_1208_data, **sikn_1208_inputs)
+            sikn_1208_data = prepare_sikn_1208_data(
+                master_df,
+                n,
+                prev_day,
+                suzun_results,
+                lodochny_results,
+                G_suzun_tng,
+                cppn1_results,
+            )
+            sikn_1208_results = calculate.sikn_1208(**sikn_1208_data, **sikn_1208_inputs_day)
             day_result.update(sikn_1208_results)
             # -------------------- Блок «Сдача ООО «РН-Ванкор» (автобаланс)-------------------------------------
-            G_ichem = lodochny_inputs["G_ichem"]
+            G_ichem = g_ichem
             G_suzun_tng = suzun_inputs["G_suzun_tng"]
             tstn_precalc_data = prepare_tstn_precalc_data(
                 master_df,
@@ -132,16 +163,16 @@ def main():
                 lodochny_results,
                 suzun_results,
                 rn_results,
-                TSTN_inputs,
+                tstn_inputs_day,
             )
             tstn_precalc_results = calculate.tstn_precalc(**tstn_precalc_data)
-            auto_balance_data = rn_vankor_auto_balance_data(master_df, n, prev_day, N, rn_results, suzun_results, TSTN_inputs, tstn_precalc_results, lodochny_results, kchng_results, G_ichem, G_suzun_tng)
+            auto_balance_data = rn_vankor_auto_balance_data(master_df, n, prev_day, N, rn_results, suzun_results, tstn_inputs_day, tstn_precalc_results, lodochny_results, kchng_results, G_ichem, G_suzun_tng)
             auto_balance_results = calculate.rn_vankor_balance(**auto_balance_data)
             day_result.update(auto_balance_results)
             # -------------------- ТСТН -------------------------------------
-            G_ichem = lodochny_inputs["G_ichem"]
+            G_ichem = g_ichem
             tstn_data = prepare_tstn_data(master_df, N, prev_day, sikn_1208_results, lodochny_results, kchng_results, suzun_results, G_ichem, G_suzun_tng, auto_balance_results, tstn_precalc_results)
-            tstn_results = calculate.TSTN(**tstn_data, **TSTN_inputs)
+            tstn_results = calculate.TSTN(**tstn_data, **tstn_inputs_day)
             day_result.update(tstn_results)
 
             # -------------------- Блок «Сдача ООО «РН-Ванкор» (проверка) -------------------------------------
@@ -176,41 +207,41 @@ def main():
         master_df.reset_index(drop=True, inplace=True)
 
         # -------------------- Сравнение плановой сдачи нефти с бизнес планом (после расчёта всех дней) --------------------
-        if last_context:
-            last_n = last_context["n"]
-            last_prev_day = last_context["prev_day"]
-            last_prev_month = last_context["prev_month"]
+        # if last_context:
+        #     last_n = last_context["n"]
+        #     last_prev_day = last_context["prev_day"]
+        #     last_prev_month = last_context["prev_month"]
 
-            plan_sdacha_inputs = plan_sdacha_data(master_df, last_n)
-            plan_sdacha_result = calculate.plan_sdacha(**plan_sdacha_inputs)
+        #     plan_sdacha_inputs = plan_sdacha_data(master_df, last_n)
+        #     plan_sdacha_result = calculate.plan_sdacha(**plan_sdacha_inputs)
 
-            business_plan_data = balance_po_business_plan_data(master_df, last_n)
-            business_plan_result = calculate.balance_po_business_plan(**business_plan_data,**balance_po_business_inputs)
+        #     business_plan_data = balance_po_business_plan_data(master_df, last_n)
+        #     business_plan_result = calculate.balance_po_business_plan(**business_plan_data,**balance_po_business_inputs)
 
-            K_vankor = TSTN_inputs["K_vankor"]
-            K_suzun = TSTN_inputs["K_suzun"]
-            K_tagul = TSTN_inputs["K_tagul"]
-            plan_gtm_data = plan_balance_gtm_data(
-                master_df,
-                last_n,
-                last_context["cppn1_results"],
-                last_context["tstn_results"],
-                last_context["suzun_results"],
-                last_context["lodochny_results"],
-                K_vankor,
-                K_suzun,
-                K_tagul,
-            )
-            plan_gtm_result = calculate.plan_balance_gtm(**plan_gtm_data, **plan_balance_gtm_inputs)
+        #     K_vankor = TSTN_inputs["K_vankor"]
+        #     K_suzun = TSTN_inputs["K_suzun"]
+        #     K_tagul = TSTN_inputs["K_tagul"]
+        #     plan_gtm_data = plan_balance_gtm_data(
+        #         master_df,
+        #         last_n,
+        #         last_context["cppn1_results"],
+        #         last_context["tstn_results"],
+        #         last_context["suzun_results"],
+        #         last_context["lodochny_results"],
+        #         K_vankor,
+        #         K_suzun,
+        #         K_tagul,
+        #     )
+        #     plan_gtm_result = calculate.plan_balance_gtm(**plan_gtm_data, **plan_balance_gtm_inputs)
 
-            last_mask = master_df["date"] == last_n
-            if last_mask.any():
-                for key, value in {
-                    **plan_sdacha_result,
-                    **business_plan_result,
-                    **plan_gtm_result,
-                }.items():
-                    master_df.loc[last_mask, key] = value
+        #     last_mask = master_df["date"] == last_n
+        #     if last_mask.any():
+        #         for key, value in {
+        #             **plan_sdacha_result,
+        #             **business_plan_result,
+        #             **plan_gtm_result,
+        #         }.items():
+        #             master_df.loc[last_mask, key] = value
 
     except calculate.CalculationValidationError as exc:
         error_info = {
@@ -237,6 +268,25 @@ def main():
         alarm_flag=alarm_flag,
         alarm_msg=alarm_msg,
     )
+
+    # ------------------------------------------------------------------
+    # 7. Экспорт баланса в Excel из JSON
+    # ------------------------------------------------------------------
+    try:
+        script_path = Path(__file__).with_name("json_to_excel_balance.py")
+        if script_path.exists():
+            current_dir = Path.cwd()
+            try:
+                os.chdir(script_path.parent)
+                runpy.run_path(str(script_path), run_name="__main__")
+            finally:
+                os.chdir(current_dir)
+        else:
+            print("Файл json_to_excel_balance.py не найден — экспорт в Excel пропущен")
+    except SystemExit as exc:
+        print(f"Экспорт в Excel прерван: {exc}")
+    except Exception as exc:
+        print(f"Ошибка экспорта в Excel: {exc}")
 
 if __name__ == "__main__":
     main()

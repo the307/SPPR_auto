@@ -107,8 +107,8 @@ def export_to_json(
         "G_per_month", "Q_vankor_month", "Q_suzun_month", "Q_vslu_month",
         "Q_tng_month", "Q_vo_month", "G_suzun_vslu_month", "G_suzun_slu_month",
         "G_suzun_month", "delta_G_suzun", "delta_G_tagul", "G_upn_lodochny_ichem_month",
-        "Q_kchng_month", "G_kchng_month", "Q_tagulsk_month", "Q_lodochny_month",
-        "K_otkachki_month", "G_lodochny_uspv_yu_month", "G_upn_lodochny_month",
+        "Q_kchng_month", "G_kchng_month", "Q_tagul_month", "Q_lodochny_month",
+        "K_otkachki_month", "G_lodochny_uspv_yu_month", "delte_G_upn_lodochny_month",
         "G_tagul_month", "delta_G_tagul_month", "G_tagul_lodochny_month",
         "G_lodochny_month", "G_sikn_vslu_month", "G_sikn_tagul_month",
         "G_sikn_suzun_month", "G_sikn_tng_month", "G_sikn_month",
@@ -260,7 +260,12 @@ def export_to_json(
             out_field = status_field_mapping.get(field, field)
             if out_field in day_data:
                 continue
-            val = row[field] if field in row else None
+            if field in row:
+                val = row[field]
+            elif out_field in row:
+                val = row[out_field]
+            else:
+                val = None
             if isinstance(val, dict):
                 day_data[out_field] = _create_status_object(
                     val.get("value"),
