@@ -16,6 +16,7 @@ from data_prep import (
     prepare_sikn_1208_data,
     prepare_tstn_data,
     prepare_tstn_precalc_data,
+    prepare_auto_balance_volumes_data,
     rn_vankor_check_data,
     rn_vankor_auto_balance_data,
     plan_sdacha_data,
@@ -127,7 +128,7 @@ def main():
             day_result.update(cppn1_results)
 
             # -------------------- РН-ВАНКОР --------------------------------
-            rn_data = prepare_rn_vankor_data(master_df, n, prev_day, N, n.day, m)
+            rn_data = prepare_rn_vankor_data(master_df, n, prev_day, N, n.day, m, suzun_results)
             rn_results = calculate.rn_vankor(**rn_data, **rn_vankor_inputs)
 
             day_result.update(rn_results)
@@ -152,7 +153,7 @@ def main():
             )
             sikn_1208_results = calculate.sikn_1208(**sikn_1208_data, **sikn_1208_inputs_day)
             day_result.update(sikn_1208_results)
-            # -------------------- Блок «Сдача ООО «РН-Ванкор» (автобаланс)-------------------------------------
+            # --------------------Предрасчет параметров-------------------------------------
             G_ichem = g_ichem
             G_suzun_tng = suzun_inputs["G_suzun_tng"]
             tstn_precalc_data = prepare_tstn_precalc_data(
@@ -166,6 +167,46 @@ def main():
                 tstn_inputs_day,
             )
             tstn_precalc_results = calculate.tstn_precalc(**tstn_precalc_data)
+            # -------------------- Блок «Сдача ООО «РН-Ванкор» (автобаланс)-------------------------------------
+            auto_balance_volumes_data = prepare_auto_balance_volumes_data(
+                master_df,
+                prev_day,
+                N,
+                suzun_results,
+            )
+            auto_balance_volumes_results = calculate.auto_balance_volumes(**auto_balance_volumes_data)
+            day_result.update(auto_balance_volumes_results)
+            updated_upn_suzun = auto_balance_volumes_results.get("V_upn_suzun")
+            updated_upn_lodochny = auto_balance_volumes_results.get("V_upn_lodochny")
+            updated_upn_yu = auto_balance_volumes_results.get("V_upsv_yu")
+            updated_upn_s = auto_balance_volumes_results.get("V_upsv_s")
+            updated_upn_cps = auto_balance_volumes_results.get("V_cps")
+            if updated_upn_suzun is not None and updated_upn_suzun != suzun_results.get("V_upn_suzun"):
+                suzun_inputs_adjusted = {**suzun_inputs, "V_upn_suzun_auto": updated_upn_suzun}
+                suzun_results = calculate.suzun(**suzun_data, **suzun_inputs_adjusted)
+                day_result.update(suzun_results)
+            if updated_upn_lodochny is not None and updated_upn_lodochny != lodochny_results.get("V_upn_lodochny"):
+                lodochny_inputs_adjusted = {
+                    **lodochny_inputs,
+                    "G_ichem": g_ichem,
+                    "V_upn_lodochny_auto": updated_upn_lodochny,
+                }
+                lodochny_results = calculate.lodochny(**lodochny_data, **lodochny_inputs_adjusted)
+                day_result.update(lodochny_results)
+            if (
+                (updated_upn_yu is not None and updated_upn_yu != cppn1_results.get("V_upsv_yu"))
+                or (updated_upn_s is not None and updated_upn_s != cppn1_results.get("V_upsv_s"))
+                or (updated_upn_cps is not None and updated_upn_cps != cppn1_results.get("V_cps"))
+            ):
+                cppn1_inputs_adjusted = {
+                    **cppn_1_inputs,
+                    "V_upsv_yu_auto": updated_upn_yu,
+                    "V_upsv_s_auto": updated_upn_s,
+                    "V_cps_auto": updated_upn_cps,
+                }
+                cppn1_results = calculate.CPPN_1(**cppn1_data, **cppn1_inputs_adjusted)
+                day_result.update(cppn1_results)
+            # -------------------- Блок «Сдача ООО «РН-Ванкор» (автобаланс)-------------------------------------
             auto_balance_data = rn_vankor_auto_balance_data(master_df, n, prev_day, N, rn_results, suzun_results, tstn_inputs_day, tstn_precalc_results, lodochny_results, kchng_results, G_ichem, G_suzun_tng)
             auto_balance_results = calculate.rn_vankor_balance(**auto_balance_data)
             day_result.update(auto_balance_results)
@@ -176,9 +217,9 @@ def main():
             day_result.update(tstn_results)
 
             # -------------------- Блок «Сдача ООО «РН-Ванкор» (проверка) -------------------------------------
-            check_data = rn_vankor_check_data(master_df, n, prev_day, tstn_results, lodochny_results, suzun_results, cppn1_results, auto_balance_results)
-            check_data_results = calculate.rn_vankor_check(**check_data)
-            day_result.update(check_data_results)
+            # check_data = rn_vankor_check_data(master_df, n, prev_day, tstn_results, lodochny_results, suzun_results, cppn1_results, auto_balance_results)
+            # check_data_results = calculate.rn_vankor_check(**check_data)
+            # day_result.update(check_data_results)
 
             # # Сохраняем контекст последнего дня для расчётов после цикла
             # last_context = {

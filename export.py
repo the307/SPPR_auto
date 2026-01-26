@@ -216,19 +216,23 @@ def export_to_json(
         "F_bp_tagul_tpu": "F_tagul_tpu",
         "F_bp_skn": "F_skn",
         "F_bp_vo": "F_vo",
+        "F_bp_tng": "F_tng",
         "F_bp_kchng": "F_kchng",
+        "V_tstn_suzun_vslu_status": "V_tstn_suzun_vslu",
+        "V_tstn_tagul_status": "V_tstn_tagul",
     }
 
     status_fields = [
+        "V_tstn_tagul", "V_tstn_suzun_vslu",
         "V_upsv_yu", "V_upsv_s", "V_upsv_cps", "V_lodochny_cps_upsv_yu",
         "G_sikn_tagul", "V_upn_suzun", "V_tagul", "V_upn_lodochny",
         "V_ichem", "V_gnps", "V_nps_1", "V_nps_2", "V_knps",
         "V_tstn_vn", "V_tstn_suzun", "V_tstn_suzun_vankor",
-        "V_tstn_suzun_vslu", "V_tstn_tagul_obch", "V_tstn_lodochny",
-        "V_tstn_tagul", "V_tstn_skn", "V_tstn_vo", "V_tstn_tng",
+        "V_tstn_suzun_vslu_status", "V_tstn_tagul_obch", "V_tstn_lodochny",
+        "V_tstn_tagul_status", "V_tstn_skn", "V_tstn_vo", "V_tstn_tng",
         "V_tstn_kchng", "F_bp", "F_bp_vn", "F_bp_suzun", "F_bp_suzun_vankor",
         "F_bp_suzun_vslu", "F_bp_tagul_lpu", "F_bp_tagul_tpu",
-        "F_bp_skn", "F_bp_vo", "F_bp_kchng", "Q_gnps", "Q_nps_1_2", "Q_knps",
+        "F_bp_skn", "F_bp_vo", "F_bp_tng", "F_bp_kchng", "Q_gnps", "Q_nps_1_2", "Q_knps",
     ]
 
     regular_field_mapping = {}
@@ -260,15 +264,22 @@ def export_to_json(
             out_field = status_field_mapping.get(field, field)
             if out_field in day_data:
                 continue
-            if field in row:
-                val = row[field]
-            elif out_field in row:
+            # Предпочитаем фактическое F_* если оно уже в master_df.
+            if out_field in row:
                 val = row[out_field]
+            elif field in row:
+                val = row[field]
             else:
                 val = None
             if isinstance(val, dict):
+                value = val.get("value")
+                if value is None and out_field in row:
+                    fallback = row[out_field]
+                    if isinstance(fallback, dict):
+                        fallback = fallback.get("value")
+                    value = fallback
                 day_data[out_field] = _create_status_object(
-                    val.get("value"),
+                    value,
                     val.get("status", 0),
                     val.get("message", ""),
                 )
