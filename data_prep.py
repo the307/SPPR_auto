@@ -1,32 +1,6 @@
 import numpy as np
 import pandas as pd
 
-from calculate import lodochny
-
-
-
-# модуль собирает все значения из master_df и формирует словари,
-# которые соответствуют аргументам оригинального main.py → calculate.*
-
-# -------------------------
-# Вспомогательные функции для получения данных
-# -------------------------
-
-def _get_month_values(master_df, column_name, month):
-    """Получает значения колонки за указанный месяц."""
-    if column_name not in master_df.columns:
-        return np.array([], dtype=float)
-    return master_df.loc[master_df["date"].dt.month == month, column_name].values
-
-def _get_const(master_df, column_name, default=0.0):
-    """Возвращает константу из master_df (первое валидное значение столбца)."""
-    if column_name not in master_df.columns:
-        return default
-    series = master_df[column_name].dropna()
-    if series.empty:
-        return default
-    return _to_scalar(series.values)
-
 
 def _to_scalar(val):
     """Безопасно извлекает скаляр из массива/списка/скаляра."""
@@ -45,779 +19,907 @@ def _to_scalar(val):
     except (TypeError, ValueError):
         return 0.0
 
+def _get_day_value(master_df, name, day, default=0.0):
+    """Безопасно получает значение колонки name на дату day.
 
-def _get_day_value(master_df, column_name, date, *, scalar: bool = True):
-    """Получает значение колонки за указанный день. По умолчанию возвращает скаляр."""
+    - Если колонки нет или строка по дате отсутствует — возвращает default.
+    - Если в ячейке лежит dict {value,status,message} — берём только value.
+    """
+    if name not in master_df.columns:
+        return default
+    value = master_df.loc[master_df["date"] == day, name].values
+    if len(value) == 0:
+        return default
+    return _to_scalar(value)
+
+def _get_month_values(master_df, column_name, month):
+    """Получает значения колонки за указанный месяц."""
     if column_name not in master_df.columns:
-        return 0.0 if scalar else np.array([], dtype=float)
-    target_date = pd.to_datetime(date, errors="coerce").normalize()
-    values = master_df.loc[master_df["date"] == target_date, column_name].values
-    return _to_scalar(values) if scalar else values
+        return np.array([], dtype=float)
+    return master_df.loc[master_df["date"].dt.month == month, column_name].values
 
 
-def prepare_suzun_data(master_df, n, m, prev_days, prev_month, N):
-    """Собирает все аргументы, которые в оригинале передавались в calculate.suzun."""
-    # --- Покупка и отгрузка ---
-    G_buy_month = float(np.nansum(_get_month_values(master_df, "G_buy_day", m)))
-    G_out_udt_month = float(np.nansum(_get_month_values(master_df, "G_out_updt_day", m)))
-    # --- GTM данные ---
-    Q_vankor = float(np.nansum(_get_month_values(master_df, "Q_vankor", m)))
-    Q_suzun = float(np.nansum(_get_month_values(master_df, "Q_suzun", m)))
-    Q_vslu = float(np.nansum(_get_month_values(master_df, "Q_vslu", m)))
-    Q_tng = float(np.nansum(_get_month_values(master_df, "Q_tng", m)))
-    Q_vo = float(np.nansum(_get_month_values(master_df, "Q_vo", m)))
-    # --- Данные за текущий день ---
-    Q_vslu_day = _get_day_value(master_df, "Q_vslu", n, scalar=True)
-    Q_suzun_day = _get_day_value(master_df, "Q_suzun", n, scalar=True)
-    # --- Предыдущий день ---
-    V_suzun_tng_prev = _get_day_value(master_df, "V_suzun_tng", prev_days, scalar=True)
-    V_upn_suzun_prev = _get_day_value(master_df, "V_upn_suzun", prev_days, scalar=True)
-    V_suzun_vslu_prev = _get_day_value(master_df, "V_suzun_vslu", prev_days, scalar=True)
-    V_suzun_slu_prev = _get_day_value(master_df, "V_suzun_slu", prev_days, scalar=True)
-    G_per_month_prev = _get_day_value(master_df, "G_per_month", prev_days, scalar=True)
-    G_suzun_vslu_month_prev = _get_day_value(master_df, "G_suzun_vslu_month", prev_days, scalar=True)
-    G_suzun_slu_month_prev = _get_day_value(master_df, "G_suzun_slu_month", prev_days, scalar=True)
-    G_suzun_month_prev = _get_day_value(master_df, "G_suzun_month", prev_days, scalar=True)
-    # --- Конец прошлого месяца ---
-    V_suzun_tng_0 = _get_const(master_df, "V_suzun_tng_0")
-    V_upn_suzun_0 = _get_const(master_df, "V_upn_suzun_0")
-    V_suzun_vslu_0 = _get_const(master_df, "V_suzun_vslu_0")
+def _get_month_scalar_values(master_df, column_name, month):
+    """
+    Получает значения колонки за месяц и приводит каждое значение к числу.
+    Если в ячейке лежит словарь вида {value,status,message}, берём только value.
+    """
+    raw = _get_month_values(master_df, column_name, month)
+    return np.array([_to_scalar(v) for v in raw], dtype=float)
+
+def _get_const(master_df, column_name, default=0.0):
+    """Возвращает константу из master_df (первое валидное значение столбца)."""
+    if column_name not in master_df.columns:
+        return default
+    series = master_df[column_name].dropna()
+    if series.empty:
+        return default
+    return _to_scalar(series.values)
+
+
+def _get_last_const(master_df, column_name, default=0.0):
+    """Возвращает последнее валидное (не NaN) значение столбца."""
+    if column_name not in master_df.columns:
+        return default
+    series = master_df[column_name].dropna()
+    if series.empty:
+        return default
+    return _to_scalar(series.iloc[-1])
     
+def get_day_zero_data(master_df,prev_month):
+    V_upn_suzun_0 = _get_day_value(master_df,"V_upn_suzun", prev_month)
+    V_suzun_vslu_0 = _get_day_value(master_df,"V_suzun_vslu", prev_month)
+    V_suzun_tng_0 = _get_day_value(master_df,"V_suzun_tng", prev_month)
+    V_upsv_yu_0 = _get_day_value(master_df,"V_upsv_yu", prev_month)
+    V_upsv_s_0 = _get_day_value(master_df,"V_upsv_s", prev_month)
+    V_cps_0 = _get_day_value(master_df,"V_cps", prev_month)
+    V_gnps_0 = _get_day_value(master_df,"V_gnps", prev_month)
+    V_nps_1_0 = _get_day_value(master_df,"V_nps_1", prev_month)
+    V_nps_2_0 = _get_day_value(master_df,"V_nps_2", prev_month)
+    V_knps_0 = _get_day_value(master_df,"V_knps", prev_month)
+    V_suzun_0 = _get_day_value(master_df,"V_suzun", prev_month)
+    V_tstn_suzun_vankor_0 = _get_day_value(master_df,"V_tstn_suzun_vankor", prev_month)
+    V_tstn_suzun_vslu_0 = _get_day_value(master_df,"V_tstn_suzun_vslu", prev_month)
+    V_tstn_tagul_0 = _get_day_value(master_df,"V_tstn_tagul", prev_month)
+    V_tstn_lodochny_0 = _get_day_value(master_df,"V_tstn_lodochny", prev_month)
+    V_tstn_rn_vn_0 = _get_day_value(master_df,"V_tstn_rn_vn", prev_month)
+    V_tstn_skn_0 = _get_day_value(master_df,"V_tstn_skn", prev_month)
+    V_tstn_vo_0 = _get_day_value(master_df,"V_tstn_vo", prev_month) 
+    V_tstn_tng_0 = _get_day_value(master_df,"V_tstn_tng", prev_month)
+    V_tstn_kchng_0 = _get_day_value(master_df,"V_tstn_kchng", prev_month)
+    return{
+        "V_upsv_yu_0":V_upsv_yu_0,
+        "V_upsv_s_0":V_upsv_s_0,
+        "V_cps_0":V_cps_0,
+        "V_upn_suzun_0":V_upn_suzun_0,
+        "V_suzun_vslu_0":V_suzun_vslu_0,
+        "V_suzun_tng_0":V_suzun_tng_0,
+        "V_gnps_0":V_gnps_0,
+        "V_nps_1_0":V_nps_1_0,
+        "V_nps_2_0":V_nps_2_0,
+        "V_knps_0":V_knps_0,
+        "V_suzun_0":V_suzun_0,
+        "V_tstn_suzun_vankor_0":V_tstn_suzun_vankor_0,
+        "V_tstn_suzun_vslu_0":V_tstn_suzun_vslu_0,
+        "V_tstn_tagul_0":V_tstn_tagul_0,
+        "V_tstn_lodochny_0":V_tstn_lodochny_0,
+        "V_tstn_rn_vn_0":V_tstn_rn_vn_0,
+        "V_tstn_skn_0":V_tstn_skn_0,
+        "V_tstn_vo_0":V_tstn_vo_0,
+        "V_tstn_tng_0":V_tstn_tng_0,
+        "V_tstn_kchng_0":V_tstn_kchng_0,
+    }
+    
+def get_prev_day_data(master_df, prev_day):
+    V_upn_suzun_prev = _get_day_value(master_df,"V_upn_suzun", prev_day)
+    V_upn_lodochny_prev = _get_day_value(master_df,"V_upn_lodochny", prev_day)
+    V_tagul_tr_prev = _get_day_value(master_df,"V_tagul_tr", prev_day)
+    V_upsv_yu_prev = _get_day_value(master_df,"V_upsv_yu", prev_day)
+    V_upsv_s_prev = _get_day_value(master_df,"V_upsv_s", prev_day)
+    V_cps_prev = _get_day_value(master_df,"V_cps", prev_day)
+    V_nps_1_prev = _get_day_value(master_df,"V_nps_1", prev_day)
+    V_nps_2_prev = _get_day_value(master_df,"V_nps_2", prev_day)
+    V_tstn_rn_vn_prev  = _get_day_value(master_df,"V_tstn_rn_vn", prev_day)
 
-    return {
-        "G_buy_month":G_buy_month,
-        "G_out_udt_month":G_out_udt_month,
+    return{
+        "V_upn_suzun_prev": V_upn_suzun_prev,
+        "V_upn_lodochny_prev":V_upn_lodochny_prev,
+        "V_tagul_tr_prev":V_tagul_tr_prev,
+        "V_upsv_yu_prev":V_upsv_yu_prev,
+        "V_upsv_s_prev":V_upsv_s_prev,
+        "V_cps_prev":V_cps_prev,
+        "V_nps_1_prev":V_nps_1_prev,
+        "V_nps_2_prev":V_nps_2_prev,
+        "V_tstn_rn_vn_prev":V_tstn_rn_vn_prev,
+    }
+
+def precalc_value_data(master_df, n, prev_day,N,day):
+    Q_vslu = _get_day_value(master_df,"Q_vslu",n)
+    G_payaha = _get_day_value(master_df,"G_payaha",n)
+    G_suzun_tng = _get_day_value(master_df,"G_suzun_tng",n)
+    Q_vo = _get_day_value(master_df,"Q_vo",n)
+    G_ichem = _get_day_value(master_df,"G_ichem",n)
+    Q_tagul = _get_day_value(master_df,"Q_tagul",n)
+    V_tagul_tr_prev = _get_day_value(master_df,"V_tagul_tr",prev_day)
+    V_tagul_tr = _get_day_value(master_df,"V_tagul_tr",n)
+    K_delta_g_tagul = _get_day_value(master_df,"K_delta_g_tagul",n)
+    Q_kchng = _get_day_value(master_df,"Q_kchng",n)
+    G_buying_oil_month = _get_const(master_df, "G_buying_oil_month")
+    G_out_udt_month = _get_const(master_df, "G_out_udt_month")
+    V_lodochny_cps_upsv_yu_prev = _get_day_value(master_df,"V_lodochny_cps_upsv_yu",prev_day)
+    G_lodochny_upsv_yu = _get_day_value(master_df,"G_lodochny_upsv_yu",n)
+    G_lodochny_upsv_yu_month = _get_last_const(master_df, "G_lodochny_upsv_yu_month")
+    G_sikn_tagul = _get_day_value(master_df,"G_sikn_tagul",n)
+    V_suzun_vslu_prev = _get_day_value(master_df,"V_suzun_vslu",prev_day)
+    V_suzun_tng_prev = _get_day_value(master_df,"V_suzun_tng",prev_day)
+    V_ichem_prev = _get_day_value(master_df, "V_ichem", prev_day)
+
+
+    return{
+        "V_lodochny_cps_upsv_yu_prev":V_lodochny_cps_upsv_yu_prev,
+        "G_lodochny_upsv_yu":G_lodochny_upsv_yu,
+        "Q_vslu":Q_vslu,
+        "V_suzun_vslu_prev":V_suzun_vslu_prev,
+        "V_suzun_tng_prev":V_suzun_tng_prev,
+        "G_payaha":G_payaha,
+        "G_suzun_tng":G_suzun_tng,
+        "V_ichem_prev":V_ichem_prev,
+        "Q_vo":Q_vo,
+        "G_ichem":G_ichem,
+        "G_lodochny_upsv_yu_month":G_lodochny_upsv_yu_month,
+        "Q_tagul":Q_tagul,
+        "V_tagul_tr_prev":V_tagul_tr_prev,
+        "V_tagul_tr":V_tagul_tr,
+        "K_delta_g_tagul":K_delta_g_tagul,
         "N":N,
+        "Q_kchng":Q_kchng,
+        "G_buying_oil_month":G_buying_oil_month,
+        "G_out_udt_month":G_out_udt_month,
+        "day":day,
+        "G_sikn_tagul":G_sikn_tagul,
+
+    }
+
+def lodochny_upsv_yu_data(master_df, n, prev_day, day, N, month):
+    G_lodochny_upsv_yu_month_prev = _get_day_value(master_df,"G_lodochny_upsv_yu_month",prev_day)
+    Q_lodochny = _get_day_value(master_df,"Q_lodochny",n)
+    K_otkachki = _get_day_value(master_df,"K_otkachki",n)
+    K_delta_g_upn_lodochny = _get_day_value(master_df,"K_delta_g_upn_lodochny",n)
+    Q_tagul = _get_month_values(master_df,"Q_tagul",month)
+    return{
+        "Q_lodochny":Q_lodochny,
+        "K_otkachki":K_otkachki,
+        "K_delta_g_upn_lodochny":K_delta_g_upn_lodochny,
+        "G_lodochny_upsv_yu_month_prev":G_lodochny_upsv_yu_month_prev,
+        "N":N,
+        "day":day,
+        "Q_tagul":Q_tagul
+    }
+
+
+def recalculation_data(master_df,n,prev_day,N,prev_month):
+    V_upn_suzun = _get_day_value(master_df, "V_upn_suzun",n)
+    V_upn_suzun_prev = _get_day_value(master_df, "V_upn_suzun",prev_day)
+    V_suzun_vslu = _get_day_value(master_df,"V_suzun_vslu",n)
+    V_suzun_tng = _get_day_value(master_df,"V_suzun_tng",n)
+    Q_suzun = _get_day_value(master_df,"Q_suzun",n)
+    Q_vslu = _get_day_value(master_df,"Q_vslu",n)
+    K_delta_g_suzun = _get_day_value(master_df,"K_delta_g_suzun",n)
+    G_suzun_vslu = _get_day_value(master_df,"G_suzun_vslu",n)
+    G_suzun_tng = _get_day_value(master_df,"G_suzun_tng",n)
+    G_payaha  = _get_day_value(master_df,"G_payaha",n)
+    V_suzun_slu_prev = _get_day_value(master_df,"V_suzun_slu",prev_day)
+    V_upn_lodochny = _get_day_value(master_df,"V_upn_lodochny",n)
+    V_ichem = _get_day_value(master_df,"V_ichem",n)
+    Q_lodochny = _get_day_value(master_df,"Q_lodochny",n)
+    Q_vo = _get_day_value(master_df,"Q_vo",n)
+    G_lodochny_upsv_yu = _get_day_value(master_df,"G_lodochny_upsv_yu",n)
+    K_otkachki = _get_day_value(master_df,"K_otkachki",n)
+    V_upn_lodochny_prev = _get_day_value(master_df,"V_upn_lodochny",prev_day)
+    K_delta_g_upn_lodochny = _get_day_value(master_df,"K_delta_g_upn_lodochny",n)
+    G_ichem = _get_day_value(master_df,"G_ichem",n)
+    G_tagul = _get_day_value(master_df,"G_tagul",n)
+    G_kchng = _get_day_value(master_df,"G_kchng",n)
+    V_upsv_yu = _get_day_value(master_df,"V_upsv_yu",n)
+    V_upsv_s = _get_day_value(master_df,"V_upsv_s",n)
+    V_cps = _get_day_value(master_df,"V_cps",n)
+    G_buying_oil = _get_day_value(master_df,"G_buying_oil",n)
+    G_per = _get_day_value(master_df,"G_per",n)
+    Q_vankor = _get_day_value(master_df,"Q_vankor",n)
+    V_upsv_yu_prev = _get_day_value(master_df,"V_upsv_yu",prev_day)
+    V_upsv_s_prev = _get_day_value(master_df,"V_upsv_s",prev_day)
+    V_cps_prev = _get_day_value(master_df,"V_cps",prev_day)
+    G_sikn_tng = _get_day_value(master_df,"G_sikn_tng",n)
+    G_sikn_tagul = _get_day_value(master_df,"G_sikn_tagul",n)
+    V_cppn_1_0 = _get_day_value(master_df,"V_cppn_1_0",prev_month)
+    V_gnps_0 = _get_day_value(master_df,"V_gnps",prev_month)
+    VN_gnps_min = _get_const(master_df,"VN_gnps_min")
+
+    return{
+        "V_upn_suzun":V_upn_suzun,
+        "V_upn_suzun_prev":V_upn_suzun_prev,
+        "V_suzun_vslu":V_suzun_vslu,
+        "V_suzun_tng":V_suzun_tng,
+        "VN_gnps_min":VN_gnps_min,
+        "Q_suzun":Q_suzun,
+        "Q_vslu":Q_vslu,
+        "K_delta_g_suzun":K_delta_g_suzun,
+        "G_suzun_vslu":G_suzun_vslu,
+        "G_suzun_tng":G_suzun_tng,
+        "G_payaha":G_payaha,
+        "V_suzun_slu_prev":V_suzun_slu_prev,
+        "V_upn_lodochny":V_upn_lodochny,
+        "V_ichem":V_ichem,
+        "Q_lodochny":Q_lodochny,
+        "Q_vo":Q_vo,
+        "G_lodochny_upsv_yu":G_lodochny_upsv_yu,
+        "K_otkachki":K_otkachki,
+        "V_upn_lodochny_prev":V_upn_lodochny_prev,
+        "K_delta_g_upn_lodochny":K_delta_g_upn_lodochny,
+        "G_ichem":G_ichem,
+        "G_tagul":G_tagul,
+        "G_kchng":G_kchng,
+        "V_upsv_yu":V_upsv_yu,
+        "V_upsv_s":V_upsv_s,
+        "V_cps":V_cps,
+        "G_buying_oil":G_buying_oil,
+        "G_per":G_per,
+        "V_upsv_yu_prev":V_upsv_yu_prev,
+        "Q_vankor":Q_vankor,
+        "V_upsv_s_prev":V_upsv_s_prev,
+        "V_cps_prev":V_cps_prev,
+        "G_sikn_tng":G_sikn_tng,
+        "G_sikn_tagul":G_sikn_tagul,
+        "V_gnps_0":V_gnps_0,
+        "N":N,
+        "V_cppn_1_0":V_cppn_1_0,
+    }
+
+def vankor_data(master_df,n,N,day,prev_day):
+    F_vn_month = _get_const(master_df, "F_vn_month")
+    F_suzun_month = _get_const(master_df, "F_suzun_month")
+    V_tstn_suzun_vslu_norm = _get_const(master_df, "V_tstn_suzun_vslu_norm")
+    F_tagul_lpu_month = _get_const(master_df, "F_tagul_lpu_month")
+    F_tagul_tpu_month = _get_const(master_df, "F_tagul_tpu_month")
+    F_skn_month = _get_const(master_df, "F_skn_month")
+    F_vo_month = _get_const(master_df, "F_vo_month")
+    F_kchng_month = _get_const(master_df,"F_kchng_month")
+    e_suzun = _get_day_value(master_df,"e_suzun",n)
+    e_vo = _get_day_value(master_df,"e_vo",n)
+    e_kchng = _get_day_value(master_df,"e_kchng",n)
+    e_tng = _get_day_value(master_df,"e_tng",n)
+    F_tng_month = _get_const(master_df,"F_tng_month")
+    G_suzun_vslu = _get_day_value(master_df,"G_suzun_vslu",n)
+    F_suzun_vankor_month = _get_day_value(master_df,"F_suzun_vankor_month",n)
+    F_bp_suzun_vankor = _get_day_value(master_df,"F_bp_suzun_vankor",n)
+    V_tstn_suzun_vslu_prev = _get_day_value(master_df, "V_tstn_suzun_vslu",prev_day)
+    F_bp_vn = _get_day_value(master_df, "F_bp_vn",n)
+    F_bp_suzun = _get_day_value(master_df, "F_bp_suzun",n)
+    F_bp_suzun_vslu = _get_day_value(master_df, "F_bp_suzun_vslu",prev_day)
+    F_bp_tagul_lpu = _get_day_value(master_df, "F_bp_tagul_lpu",n)
+    F_bp_tagul_tpu = _get_day_value(master_df, "F_bp_tagul_tpu",n)
+    F_bp_skn = _get_day_value(master_df, "F_bp_skn",n)
+    F_bp_vo = _get_day_value(master_df, "F_bp_vo",n)
+    F_bp_tng = _get_day_value(master_df, "F_bp_tng",n)
+    F_bp_kchng = _get_day_value(master_df, "F_bp_kchng",n)
+    return{
+        "F_vn_month":F_vn_month,
+        "F_suzun_month":F_suzun_month,
+        "V_tstn_suzun_vslu_norm":V_tstn_suzun_vslu_norm,
+        "F_tagul_lpu_month":F_tagul_lpu_month,
+        "F_tagul_tpu_month":F_tagul_tpu_month,
+        "F_skn_month":F_skn_month,
+        "F_vo_month":F_vo_month,
+        "F_kchng_month":F_kchng_month,
+        "e_suzun":e_suzun,
+        "e_vo":e_vo,
+        "e_kchng":e_kchng,
+        "e_tng":e_tng,
+        "F_tng_month":F_tng_month,
+        "G_suzun_vslu":G_suzun_vslu,
+        "F_suzun_vankor_month":F_suzun_vankor_month,
+        "F_bp_suzun_vankor":F_bp_suzun_vankor,
+        "V_tstn_suzun_vslu_prev":V_tstn_suzun_vslu_prev,
+        "N":N,
+        "day":day,
+        "F_bp_vn":F_bp_vn,
+        "F_bp_suzun":F_bp_suzun,
+        "F_bp_suzun_vslu":F_bp_suzun_vslu,
+        "F_bp_tagul_lpu":F_bp_tagul_lpu,
+        "F_bp_tagul_tpu":F_bp_tagul_tpu,
+        "F_bp_skn":F_bp_skn,
+        "F_bp_vo":F_bp_vo,
+        "F_bp_tng":F_bp_tng,
+        "F_bp_kchng":F_bp_kchng,
+    }
+def get_availability_and_pumping_data(master_df, n, N, month, prev_day):
+    G_suzun_vslu = _get_day_value(master_df, "G_suzun_vslu",n)
+    G_sikn = _get_day_value(master_df, "G_sikn",n)
+    V_gnps_prev = _get_day_value(master_df, "V_gnps",prev_day)
+    # month здесь — номер месяца (1..12), поэтому берём ряд значений за месяц
+    G_gpns_i = _get_month_values(master_df, "G_gpns_i", month)
+    return {
+        "N":N,
+        "G_suzun_vslu":G_suzun_vslu,
+        "G_sikn":G_sikn,
+        "V_gnps_prev":V_gnps_prev,
+        "G_gpns_i":G_gpns_i,
+    }
+def get_month_data(master_df,month):
+    Q_vankor = _get_month_values(master_df,"Q_vankor",month)
+    Q_suzun = _get_month_values(master_df,"Q_suzun",month)
+    Q_vslu =  _get_month_values(master_df,"Q_vslu",month)
+    Q_tng = _get_month_values(master_df,"Q_tng",month)
+    Q_vo = _get_month_values(master_df,"Q_vo",month)
+    Q_lodochny = _get_month_values(master_df,"Q_lodochny",month)
+    G_suzun_vslu = _get_month_values(master_df,"G_suzun_vslu",month)
+    G_suzun_slu = _get_month_scalar_values(master_df, "G_suzun_slu", month)
+    G_suzun = _get_month_values(master_df,"G_suzun",month)
+    delta_G_suzun = _get_month_values(master_df,"delta_G_suzun",month)
+    G_upn_lodochny_ichem = _get_month_values(master_df,"G_upn_lodochny_ichem",month)
+    Q_kchng = _get_month_values(master_df,"Q_kchng",month)
+    G_kchng = _get_month_values(master_df,"G_kchng",month)
+    G_sikn_tagul = _get_month_scalar_values(master_df, "G_sikn_tagul", month)
+    delta_G_upn_lodochny = _get_month_values(master_df,"delta_G_upn_lodochny",month)
+    G_tagul = _get_month_values(master_df,"G_tagul",month)
+    delta_G_tagul = _get_month_values(master_df,"delta_G_tagul",month)
+    G_tagul_lodochny = _get_month_values(master_df,"G_tagul_lodochny",month)
+    G_lodochny = _get_month_values(master_df,"G_lodochny",month)
+    G_sikn_vslu = _get_month_values(master_df,"G_sikn_vslu",month)
+    G_sikn_suzun = _get_month_values(master_df,"G_sikn_suzun",month)
+    G_sikn_tng = _get_month_values(master_df,"G_sikn_tng",month)
+    G_sikn = _get_month_values(master_df,"G_sikn",month)
+    G_sikn_vankor = _get_month_values(master_df,"G_sikn_vankor",month)
+    G_skn = _get_month_values(master_df,"G_skn",month)
+    delta_G_sikn = _get_month_values(master_df,"delta_G_sikn",month)
+    # month_calc ожидает суточный ряд G_per, а не месячную сумму
+    G_per = _get_month_values(master_df,"G_per",month)
+    V_ichem = _get_month_values(master_df,"V_ichem",month)
+    G_upn_lodochny = _get_month_values(master_df,"G_upn_lodochny",month)
+    return{
         "Q_vankor":Q_vankor,
         "Q_suzun":Q_suzun,
         "Q_vslu":Q_vslu,
         "Q_tng":Q_tng,
         "Q_vo":Q_vo,
-        "V_suzun_tng_prev":V_suzun_tng_prev,
-        "Q_vslu_day":Q_vslu_day,
+        "Q_lodochny":Q_lodochny,
+        "G_suzun_vslu":G_suzun_vslu,
+        "G_sikn":G_sikn,
+        "G_sikn_tagul":G_sikn_tagul,
+        "G_sikn_suzun":G_sikn_suzun,
+        "G_sikn_tng":G_sikn_tng,
+        "G_suzun_slu":G_suzun_slu,
+        "G_sikn_vankor":G_sikn_vankor,
+        "G_skn":G_skn,
+        "delta_G_sikn":delta_G_sikn,
+        "delta_G_upn_lodochny":delta_G_upn_lodochny,
+        "delta_G_tagul":delta_G_tagul,
+        "G_suzun":G_suzun,
+        "G_sikn_vslu":G_sikn_vslu,
+        "G_lodochny":G_lodochny,
+        "G_tagul_lodochny":G_tagul_lodochny,
+        "delta_G_suzun":delta_G_suzun,
+        "G_tagul":G_tagul,
+        "G_upn_lodochny_ichem":G_upn_lodochny_ichem,
+        "G_kchng":G_kchng,
+        "Q_kchng":Q_kchng,
+        "G_per":G_per,
+        "V_ichem":V_ichem,
+        "G_upn_lodochny":G_upn_lodochny,
+    }
+
+def get_auto_balance_volumes(master_df, n, prev_day, N, prev_month):
+    V_upn_suzun_prev = _get_day_value(master_df,"V_upn_suzun",prev_day)
+    Start_autobalance = _get_day_value(master_df,"Start_autobalance",n)
+    V_upn_suzun_0 = _get_day_value(master_df,"V_upn_suzun",prev_month)
+    VN_upn_suzun_min = _get_const(master_df,"VN_upn_suzun_min")
+    V_upn_lodochny_0 = _get_day_value(master_df,"V_upn_lodochny",prev_month)
+    VN_upn_lodochny_min = _get_const(master_df,"VN_upn_lodochny_min")
+    V_upsv_yu_0 = _get_day_value(master_df,"V_upsv_yu",prev_month)
+    VN_upsv_yu_min = _get_const(master_df,"VN_upsv_yu_min")
+    V_upsv_s_0 = _get_day_value(master_df,"V_upsv_s_0",prev_month)
+    VN_upsv_s_min = _get_const(master_df,"VN_upsv_s_min")
+    V_cps_0 = _get_day_value(master_df,"V_cps",prev_month)
+    VN_cps_min = _get_const(master_df,"VN_cps_min")
+    V_upn_lodochny_prev = _get_day_value(master_df,"V_upn_lodochny",prev_day)
+    V_upsv_yu_prev = _get_day_value(master_df,"V_upsv_yu",prev_day)
+    V_upsv_s_prev = _get_day_value(master_df,"V_upsv_s",prev_day)
+    V_cps_prev = _get_day_value(master_df,"V_cps",prev_day)
+    # Текущее значение (нужно для ветки Start_autobalance=False)
+    V_upn_suzun = _get_day_value(master_df,"V_upn_suzun",n)
+    return {
         "V_upn_suzun_prev":V_upn_suzun_prev,
-        "V_suzun_vslu_prev":V_suzun_vslu_prev,
-        "Q_suzun_day":Q_suzun_day,
+        "Start_autobalance":Start_autobalance,
         "V_upn_suzun_0":V_upn_suzun_0,
-        "V_suzun_vslu_0":V_suzun_vslu_0,
-        "V_suzun_tng_0":V_suzun_tng_0,
-        "V_suzun_slu_prev":V_suzun_slu_prev,
-        "G_per_month_prev": G_per_month_prev,
-        "G_suzun_vslu_month_prev": G_suzun_vslu_month_prev,
-        "G_suzun_slu_month_prev": G_suzun_slu_month_prev,
-        "G_suzun_month_prev": G_suzun_month_prev,
-
-    }
-
-
-def prepare_vo_data(master_df, n, prev_day):
-    Q_vo_day = _get_day_value(master_df, "Q_vo", n, scalar=True)
-    G_upn_lodochny_ichem_month_prev = _get_day_value(
-        master_df, "G_upn_lodochny_ichem_month", prev_day, scalar=True
-    )
-
-    return {
-        "Q_vo_day": Q_vo_day,
-        "G_upn_lodochny_ichem_month_prev": G_upn_lodochny_ichem_month_prev,
-    }
-
-
-def prepare_kchng_data(master_df, n, m, prev_day):
-    Q_kchng = _get_month_values(master_df, "Q_kchng", m)
-    Q_kchng_day = _get_day_value(master_df, "Q_kchng", n, scalar=True)
-    G_kchng_month_prev = _get_day_value(master_df, "G_kchng_month", prev_day, scalar=True)
-
-    return {
-        "Q_kchng_day": Q_kchng_day,
-        "Q_kchng": Q_kchng,
-        "G_kchng_month_prev": G_kchng_month_prev,
-    }
-
-
-def prepare_lodochny_data(master_df, n, m, prev_days, prev_month, N, day, kchng_results):
-    Q_tagulsk = _get_month_values(master_df, "Q_tagul", m)
-    Q_lodochny = _get_month_values(master_df, "Q_lodochny", m)
-    Q_lodochny_day = _get_day_value(master_df, "Q_lodochny", n, scalar=True)
-    Q_tagulsk_day = _get_day_value(master_df, "Q_tagul", n, scalar=True)
-    V_upn_lodochny_prev = _get_day_value(master_df, "V_upn_lodochny", prev_days, scalar=True)
-    V_ichem_prev = _get_day_value(master_df, "V_ichem", prev_days, scalar=True)
-    G_lodochny_ichem = _get_day_value(master_df, "G_upn_lodochny_ichem", n, scalar=True)
-    V_tagul_prev = _get_day_value(master_df, "V_tagul", prev_days, scalar=True)
-    G_lodochny_uspv_yu_month_prev = _get_day_value(master_df, "G_lodochny_uspv_yu_month", prev_days, scalar=True)
-    G_sikn_tagul_month_prev = _get_day_value(master_df, "G_sikn_tagul_month", prev_days, scalar=True)
-    G_tagul_month_prev = _get_day_value(master_df, "G_tagul_month", prev_days, scalar=True)
-    delta_G_tagul_month_prev = _get_day_value(master_df, "delta_G_tagul_month", prev_days, scalar=True)
-    G_lodochny_month_prev = _get_day_value(master_df, "G_lodochny_month", prev_days, scalar=True)
-    delte_G_upn_lodochny_month_prev = _get_day_value(master_df, "delte_G_upn_lodochny_month", prev_days, scalar=True)
-    G_tagul_lodochny_month_prev = _get_day_value(master_df, "G_tagul_lodochny_month", prev_days, scalar=True)
-
-
-    return {
-        "Q_tagul": Q_tagulsk,
-        "Q_lodochny": Q_lodochny,
-        "V_upn_lodochny_prev": V_upn_lodochny_prev,
-        "V_ichem_prev": V_ichem_prev,
-        "G_lodochny_ichem": G_lodochny_ichem,
-        "N": N,
-        "Q_vo_day": _get_day_value(master_df, "Q_vo", n, scalar=True),
-        "Q_lodochny_day": Q_lodochny_day,
-        "Q_tagul_day": Q_tagulsk_day,
-        "V_tagul_prev": V_tagul_prev,
-        "G_kchng": kchng_results.get("G_kchng", 0),
-        "day": day,
-        "G_lodochny_uspv_yu_month_prev": G_lodochny_uspv_yu_month_prev,
-        "G_sikn_tagul_month_prev": G_sikn_tagul_month_prev,
-        "G_tagul_month_prev": G_tagul_month_prev,
-        "delta_G_tagul_month_prev": delta_G_tagul_month_prev,
-        "G_lodochny_month_prev": G_lodochny_month_prev,
-        "delte_G_upn_lodochny_month_prev": delte_G_upn_lodochny_month_prev,
-        "G_tagul_lodochny_month_prev": G_tagul_lodochny_month_prev,
-    }
-
-
-def prepare_cppn1_data(master_df, n, prev_days,  lodochny_results):
-    flag_list = [0, 0, 0]  # Для отслеживания остановки
-    V_upsv_yu_0 = _get_const(master_df, "V_upsv_yu_0")
-    V_upsv_s_0 = _get_const(master_df, "V_upsv_s_0")
-    V_upsv_cps_0 = _get_const(master_df, "V_cps_0")
-    V_upsv_yu_prev = _get_day_value(master_df, "V_upsv_yu", prev_days, scalar = True)
-    V_upsv_s_prev = _get_day_value(master_df, "V_upsv_s", prev_days, scalar = True)
-    V_cps_prev = _get_day_value(master_df, "V_cps", prev_days, scalar = True)
-    V_lodochny_cps_upsv_yu_prev = _get_day_value(master_df, "V_lodochny_cps_upsv_yu", prev_days, scalar=True)
-    return {
+        "VN_upn_suzun_min":VN_upn_suzun_min,
+        "V_upn_lodochny_0":V_upn_lodochny_0,
+        "VN_upn_lodochny_min":VN_upn_lodochny_min,
+        "V_upsv_yu_0":V_upsv_yu_0,
+        "VN_upsv_yu_min":VN_upsv_yu_min,
+        "V_upsv_s_0":V_upsv_s_0,
+        "V_cps_0":V_cps_0,
+        "VN_cps_min":VN_cps_min,
+        "VN_upsv_s_min":VN_upsv_s_min,
+        "V_upn_lodochny_prev":V_upn_lodochny_prev,
         "V_upsv_yu_prev":V_upsv_yu_prev,
         "V_upsv_s_prev":V_upsv_s_prev,
         "V_cps_prev":V_cps_prev,
-        "V_upsv_yu_0":V_upsv_yu_0,
-        "V_upsv_s_0":V_upsv_s_0,
-        "V_upsv_cps_0":V_upsv_cps_0,
-        "V_lodochny_cps_upsv_yu_prev":V_lodochny_cps_upsv_yu_prev,
-        "G_sikn_tagul":lodochny_results.get("G_sikn_tagul"),
-        "G_lodochny_uspv_yu":lodochny_results.get("G_lodochny_uspv_yu"),
-        "flag_list":flag_list
+        "V_upn_suzun":V_upn_suzun,
+        "N":N
     }
 
-
-def prepare_rn_vankor_data(master_df, n, prev_days, N, day, m, suzun_results):
-    F_vn = _get_day_value(master_df, "F_vn", n, scalar=True)
-    F_suzun_obsh = _get_day_value(master_df, "F_suzun_obsh", n, scalar=True)
-    F_suzun_vankor = _get_day_value(master_df, "F_suzun_vankor", n, scalar=True)
-    F_bp_data = _get_month_values(master_df, "F_bp", m).tolist()
-    V_tstn_suzun_vslu_norm = _get_const(master_df, "V_tstn_suzun_vslu_norm")
-    V_tstn_suzun_vslu = _get_day_value(master_df, "V_tstn_suzun_vslu", n, scalar=True)
-    F_tagul_lpu = _get_day_value(master_df, "F_tagul_lpu", n, scalar=True)
-    F_tagul_tpu = _get_day_value(master_df, "F_tagul_tpu", n, scalar=True)
-    F_skn = _get_day_value(master_df, "F_skn", n, scalar=True)
-    F_vo = _get_day_value(master_df, "F_vo", n, scalar=True)
-    F_kchng = _get_day_value(master_df, "F_kchng", n, scalar=True)
-    e_suzun_vankor = _get_day_value(master_df, "e_suzun_vankor", n, scalar=True)
-    e_vo = _get_day_value(master_df, "e_vo", n, scalar=True)     
-    e_tng = _get_day_value(master_df, "e_tng", n, scalar=True)         
-    e_kchng = _get_day_value(master_df, "e_kchng", n, scalar=True)         
-    F_tng = _get_day_value(master_df, "F_tng", n, scalar=True)        
-    F_bp_vn_month_prev = _get_day_value(master_df, "F_bp_vn_month", prev_days, scalar=True)
-    F_bp_suzun_month_prev = _get_day_value(master_df, "F_bp_suzun_month", prev_days, scalar=True)
-    F_bp_suzun_vankor_month_prev = _get_day_value(master_df, "F_bp_suzun_vankor_month", prev_days, scalar=True)
-    F_bp_suzun_vslu_month_prev = _get_day_value(master_df, "F_bp_suzun_vslu_month", prev_days, scalar=True)
-    F_bp_tagul_lpu_month_prev = _get_day_value(master_df, "F_bp_tagul_lpu_month", prev_days, scalar=True)
-    F_bp_tagul_tpu_month_prev = _get_day_value(master_df, "F_bp_tagul_tpu_month", prev_days, scalar=True)
-    F_bp_tagul_month_prev = _get_day_value(master_df, "F_bp_tagul_month", prev_days, scalar=True)
-    F_bp_skn_month_prev = _get_day_value(master_df, "F_bp_skn_month", prev_days, scalar=True)
-    F_bp_vo_month_prev = _get_day_value(master_df, "F_bp_vo_month", prev_days, scalar=True)
-    F_bp_tng_month_prev = _get_day_value(master_df, "F_bp_tng_month", prev_days, scalar=True)
-    F_bp_kchng_month_prev = _get_day_value(master_df, "F_bp_kchng_month", prev_days, scalar=True)
-    F_bp_month_prev = _get_day_value(master_df, "F_bp_month", prev_days, scalar=True)
-    V_tstn_suzun_vslu_prev = _get_day_value(master_df,"V_tstn_suzun_vslu",prev_days,scalar=True)
-
-    return {
-        "F_vn": F_vn,
-        "F_suzun_obsh": F_suzun_obsh,
-        "F_suzun_vankor": F_suzun_vankor,
-        "N": N,
-        "day": day,
-        "F_bp_data": F_bp_data,
-        "V_tstn_suzun_vslu_norm": V_tstn_suzun_vslu_norm,
-        "V_tstn_suzun_vslu": V_tstn_suzun_vslu,
-        "F_tagul_lpu": F_tagul_lpu,
-        "F_tagul_tpu": F_tagul_tpu,
-        "F_skn": F_skn,
-        "F_vo": F_vo,
-        "F_kchng": F_kchng,
-        "e_suzun_vankor": e_suzun_vankor,
-        "e_vo": e_vo,
-        "e_tng": e_tng,
-        "e_kchng": e_kchng,
-        "F_tng": F_tng,
-        "F_bp_vn_month_prev": F_bp_vn_month_prev,
-        "F_bp_suzun_month_prev": F_bp_suzun_month_prev,
-        "F_bp_suzun_vankor_month_prev": F_bp_suzun_vankor_month_prev,
-        "F_bp_suzun_vslu_month_prev": F_bp_suzun_vslu_month_prev,
-        "F_bp_tagul_lpu_month_prev": F_bp_tagul_lpu_month_prev,
-        "F_bp_tagul_tpu_month_prev": F_bp_tagul_tpu_month_prev,
-        "F_bp_tagul_month_prev": F_bp_tagul_month_prev,
-        "F_bp_skn_month_prev": F_bp_skn_month_prev,
-        "F_bp_vo_month_prev": F_bp_vo_month_prev,
-        "F_bp_tng_month_prev": F_bp_tng_month_prev,
-        "F_bp_kchng_month_prev": F_bp_kchng_month_prev,
-        "F_bp_month_prev": F_bp_month_prev,
-        "V_tstn_suzun_vslu_prev":V_tstn_suzun_vslu_prev,
-        "G_suzun_vslu":suzun_results.get("G_suzun_vslu")
-
-    }
-def prepare_sikn_1208_data(master_df, n, prev_day, suzun_results, lodochny_results, G_suzun_tng, cppn1_results):
-
-
-    Q_vankor = _get_day_value(master_df, "Q_vankor", n, scalar=True)
-    V_upsv_yu_prev = _get_day_value(master_df, "V_upsv_yu", prev_day, scalar=True)
-    V_upsv_s_prev = _get_day_value(master_df, "V_upsv_s", prev_day, scalar=True)
-    V_upsv_cps_prev = _get_day_value(master_df, "V_cps", prev_day, scalar=True)
-    V_cppn_1_prev = _get_day_value(master_df,"V_cppn_1", prev_day, scalar=True)
-    G_sikn_vslu_month_prev = _get_day_value(master_df, "G_sikn_vslu_month", prev_day, scalar=True)
-    G_sikn_tagul_month_prev = _get_day_value(master_df, "G_sikn_tagul_month", prev_day, scalar=True)
-    G_sikn_suzun_month_prev = _get_day_value(master_df, "G_sikn_suzun_month", prev_day, scalar=True)
-    G_sikn_tng_month_prev = _get_day_value(master_df, "G_sikn_tng_month", prev_day, scalar=True)
-    G_sikn_month_prev = _get_day_value(master_df, "G_sikn_month", prev_day, scalar=True)
-    G_sikn_vankor_month_prev = _get_day_value(master_df, "G_sikn_vankor_month", prev_day, scalar=True)
-    G_skn_month_prev = _get_day_value(master_df, "G_skn_month", prev_day, scalar=True)
-    delta_G_sikn_month_prev = _get_day_value(master_df, "delta_G_sikn_month", prev_day, scalar=True)
-    return {
-        "G_suzun_vslu": _to_scalar(suzun_results.get("G_suzun_vslu")),
-        "G_buy_day": _to_scalar(suzun_results.get("G_buy_day")),
-        "G_per": _to_scalar(suzun_results.get("G_per")),
-        "G_suzun": _to_scalar(suzun_results.get("G_suzun")),
-        "G_suzun_tng": G_suzun_tng,
-        "Q_vankor": Q_vankor,
-        "V_upsv_yu": _to_scalar(cppn1_results.get("V_upsv_yu")),
-        "V_upsv_s": _to_scalar(cppn1_results.get("V_upsv_s")),
-        "V_upsv_cps": _to_scalar(cppn1_results.get("V_cps")),
-        "V_upsv_yu_prev": V_upsv_yu_prev,
-        "V_upsv_s_prev": V_upsv_s_prev,
-        "V_upsv_cps_prev": V_upsv_cps_prev,
-        "G_lodochny_uspv_yu": lodochny_results.get("G_lodochny_uspv_yu"),
-        "V_cppn_1": cppn1_results.get("V_cppn_1"),
-        "G_sikn_tagul": lodochny_results.get("G_sikn_tagul"),
-        "V_cppn_1_prev":V_cppn_1_prev,
-        "G_sikn_vslu_month_prev": G_sikn_vslu_month_prev,
-        "G_sikn_tagul_month_prev": G_sikn_tagul_month_prev,
-        "G_sikn_suzun_month_prev": G_sikn_suzun_month_prev,
-        "G_sikn_tng_month_prev": G_sikn_tng_month_prev,
-        "G_sikn_month_prev": G_sikn_month_prev,
-        "G_sikn_vankor_month_prev": G_sikn_vankor_month_prev,
-        "G_skn_month_prev": G_skn_month_prev,
-        "delta_G_sikn_month_prev": delta_G_sikn_month_prev
-    }
-
-def rn_vankor_auto_balance_data(master_df, n,prev_day, N, rn_results, suzun_results, tstn_inputs, tstn_results,lodochny_results,kchng_results,G_ichem,G_suzun_tng):
-    V_tstn_suzun_prev = _get_day_value(master_df,"V_tstn_suzun",prev_day,scalar = True)
-    V_knps_prev = _get_day_value(master_df,"V_knps",prev_day,scalar=True)
-    V_nps_1_prev = _get_day_value(master_df,"V_nps_1",prev_day,scalar=True)
-    V_nps_2_prev = _get_day_value(master_df, "V_nps_2",prev_day,scalar=True)
+def get_balance_data(master_df, n, prev_day):
+    Start_autobalance = _get_day_value(master_df,"Start_autobalance",n)
+    V_tstn_suzun_norm = _get_const(master_df,"V_tstn_suzun_norm")
     VN_knps_min = _get_const(master_df,"VN_knps_min")
-    V_tstn_norm_suzun = _get_const(master_df,"V_tstn_norm_suzun")
-    flag_sost = _get_const(master_df,"flag_sost")
-    V_tstn_suzun_vankor_prev = _get_day_value(master_df,"V_tstn_suzun_vankor",prev_day,scalar=True)
-    V_tstn_norm_suzun_vankor = _get_const(master_df,"V_tstn_norm_suzun_vankor")
-    V_tstn_norm_lodochny = _get_const(master_df,"V_tstn_norm_lodochny")
-    V_tstn_lodochny_prev = _get_day_value(master_df,"V_tstn_lodochny",prev_day,scalar=True)
-    V_tstn_norm_tagul = _get_const(master_df,"V_tstn_norm_tagul")
-    V_tstn_tagul_prev = _get_day_value(master_df,"V_tstn_tagul",prev_day,scalar=True)
-    V_tstn_norm_skn = _get_const(master_df,"V_tstn_norm_skn")
-    V_tstn_skn_prev = _get_day_value(master_df,"V_tstn_skn",prev_day,scalar=True)
-    V_tstn_norm_vo = _get_const(master_df,"V_tstn_norm_vo")
-    V_tstn_vo_prev = _get_day_value(master_df,"V_tstn_vo",prev_day,scalar=True)
-    V_tstn_norm_tng = _get_const(master_df,"V_tstn_norm_tng")
-    V_tstn_tng_prev = _get_day_value(master_df, "V_tstn_tng",prev_day,scalar=True)
-    V_tstn_norm_kchng = _get_const(master_df,"V_tstn_norm_kchng")
-    V_tstn_kchng_prev = _get_day_value(master_df,"V_tstn_kchng",prev_day,scalar=True)
-    V_tstn_norm_vn = _get_const(master_df,"V_tstn_norm_vn")
-    F_suzun_month_prev = _get_day_value(master_df, "F_suzun_month", prev_day, scalar=True)
-    F_suzun_vankor_month_prev = _get_day_value(master_df, "F_suzun_vankor_month", prev_day, scalar=True)
-    F_suzun_vslu_month_prev = _get_day_value(master_df, "F_suzun_vslu_month", prev_day, scalar=True)
-    F_tagul_lpu_month_prev = _get_day_value(master_df, "F_tagul_lpu_month", prev_day, scalar=True)
-    F_tagul_tpu_month_prev = _get_day_value(master_df, "F_tagul_tpu_month", prev_day, scalar=True)
-    F_tagul_month_prev = _get_day_value(master_df, "F_tagul_month", prev_day, scalar=True)
-    F_skn_month_prev = _get_day_value(master_df, "F_skn_month", prev_day, scalar=True)
-    F_vo_month_prev = _get_day_value(master_df, "F_vo_month", prev_day, scalar=True)
-    F_tng_month_prev = _get_day_value(master_df, "F_tng_month", prev_day, scalar=True)
-    F_kchng_month_prev = _get_day_value(master_df, "F_kchng_month", prev_day, scalar=True)
-    F_vn_month_prev = _get_day_value(master_df, "F_vn_month", prev_day, scalar=True)
-    F_month_prev = _get_day_value(master_df, "F_month", prev_day, scalar=True)
+    V_tstn_kchng_norm = _get_const(master_df,"V_tstn_kchng_norm")
+    V_tstn_tng_norm = _get_const(master_df,"V_tstn_tng_norm")
+    V_tstn_vo_norm = _get_const(master_df,"V_tstn_vo_norm")
+    V_tstn_skn_norm = _get_const(master_df,"V_tstn_skn_norm")
+    V_tstn_tagul_norm = _get_const(master_df,"V_tstn_tagul_norm")
+    V_tstn_suzun_vankor_norm = _get_const(master_df,"V_tstn_suzun_vankor_norm")
+    V_tstn_vn_norm = _get_const(master_df,"V_tstn_vn_norm")
+    V_tstn_lodochny_norm = _get_const(master_df,"V_tstn_lodochny_norm")
+
+    V_nps_1 = _get_day_value(master_df,"V_nps_1",n)
+    V_nps_2 = _get_day_value(master_df,"V_nps_2",n)
+    G_suzun_slu = _get_day_value(master_df,"G_suzun_slu",n)
+    K_suzun = _get_day_value(master_df,"K_suzun",n)
+    G_gnps = _get_day_value(master_df,"G_gnps",n)
+    G_tagul = _get_day_value(master_df,"G_tagul",n)
+    G_upn_lodochny = _get_day_value(master_df,"G_upn_lodochny",n)
+    G_skn = _get_day_value(master_df,"G_skn",n)
+    G_kchng = _get_day_value(master_df,"G_kchng",n)
+    G_buying_oil = _get_day_value(master_df,"G_buying_oil",n)
+    G_suzun_tng = _get_day_value(master_df,"G_suzun_tng",n)
+    K_payaha = _get_day_value(master_df,"K_payaha",n)
+    K_ichem = _get_day_value(master_df,"K_ichem",n)
+    G_ichem = _get_day_value(master_df,"G_ichem",n)
+    K_skn = _get_day_value(master_df,"K_skn",n)
+    K_tagul = _get_day_value(master_df,"K_tagul",n)
+    G_per = _get_day_value(master_df,"G_per",n)
+    G_sikn_tagul = _get_day_value(master_df,"G_sikn_tagul",n)
+    G_lodochny = _get_day_value(master_df,"G_lodochny",n)
+    V_gnps = _get_day_value(master_df,"V_gnps",n)
+    V_tstn_rn_vn = _get_day_value(master_df,"V_tstn_rn_vn",n)
+    K_vankor = _get_day_value(master_df,"K_vankor",n)
+    K_lodochny = _get_day_value(master_df,"K_lodochny",n)
+    F_bp = _get_day_value(master_df,"F_bp",n)
+    G_suzun_vslu = _get_day_value(master_df,"G_suzun_vslu",n)
+
+
+    V_tstn_suzun_prev = _get_day_value(master_df,"V_tstn_suzun",prev_day)
+    V_tstn_suzun_vslu_prev = _get_day_value(master_df,"V_tstn_suzun_vslu",prev_day)
+    V_nps_2_prev = _get_day_value(master_df,"V_nps_2",prev_day)
+    V_nps_1_prev = _get_day_value(master_df,"V_nps_1",prev_day)
+    V_tstn_suzun_vankor_prev = _get_day_value(master_df,"V_tstn_suzun_vankor",prev_day)
+    V_tstn_tagul_prev = _get_day_value(master_df,"V_tstn_tagul",prev_day)
+    V_knps_prev = _get_day_value(master_df,"V_knps",prev_day)
+    V_tstn_lodochny_prev = _get_day_value(master_df,"V_tstn_lodochny",prev_day)
+    V_tstn_skn_prev = _get_day_value(master_df,"V_tstn_skn",prev_day)
+    V_tstn_tng_prev = _get_day_value(master_df,"V_tstn_tng",prev_day)
+    V_tstn_vo_prev = _get_day_value(master_df,"V_tstn_vo",prev_day)
+    V_tstn_kchng_prev = _get_day_value(master_df,"V_tstn_kchng",prev_day)
+
+    F_bp_tagul_lpu = _get_day_value(master_df,"F_bp_tagul_lpu",n)
+    F_bp_tagul_tpu = _get_day_value(master_df,"F_bp_tagul_tpu",n)
+    F_bp_suzun_vankor = _get_day_value(master_df,"F_bp_suzun_vankor",n)
+    F_bp_suzun_vslu = _get_day_value(master_df,"F_bp_suzun_vslu",n)
+    F_bp_skn = _get_day_value(master_df,"F_bp_skn",n)
+    F_bp_vo = _get_day_value(master_df,"F_bp_vo",n)
+    F_bp_tng = _get_day_value(master_df,"F_bp_tng",n)
+    F_bp_kchng = _get_day_value(master_df,"F_bp_kchng",n)
+    F_bp_vn = _get_day_value(master_df,"F_bp_vn",n)
+    F_bp_suzun = _get_day_value(master_df,"F_bp_suzun",n)
+
 
     return{
-        "F_bp_tagul_lpu":rn_results.get("F_bp_tagul_lpu"),
-        "F_bp_tagul_tpu":rn_results.get("F_bp_tagul_tpu"), "F_bp_suzun_vankor":rn_results.get("F_bp_suzun_vankor"), "F_bp_suzun_vslu":rn_results.get("F_bp_suzun_vslu"),
-        "F_bp_skn":rn_results.get("F_bp_skn"), "F_bp_vo":rn_results.get("F_bp_vo"), "F_bp_tng":rn_results.get("F_bp_tng"),
-        "F_bp_kchng":rn_results.get("F_bp_kchng"), "F_bp_suzun":rn_results.get("F_bp_suzun"), "F_bp_vn":rn_results.get("F_bp_vn"), "G_suzun_slu":_to_scalar(suzun_results.get("G_suzun_slu")),
-        "K_suzun":tstn_inputs.get("K_suzun"), "K_vankor":tstn_inputs.get("K_vankor"), "G_gnps":tstn_results.get("G_gnps"), "G_tagul":lodochny_results.get("G_tagul"),
-        "G_upn_lodochny":lodochny_results.get("G_upn_lodochny"), "G_skn":tstn_inputs.get("G_skn"), "G_kchng":kchng_results.get("G_kchng"), "V_nps_1":tstn_results.get("V_nps_1"),
-        "V_nps_2":tstn_results.get("V_nps_2"), "G_buy_day":_to_scalar(suzun_results.get("G_buy_day")), "G_per":_to_scalar(suzun_results.get("G_per")), "G_sikn_tagul":lodochny_results.get("G_sikn_tagul"),
-        "G_lodochny":lodochny_results.get("G_lodochny"),"K_lodochny":tstn_inputs.get("K_lodochny"), "K_tagul":tstn_inputs.get("K_tagul"), "K_skn":tstn_inputs.get("K_skn"),
-        "K_ichem":tstn_inputs.get("K_ichem"), "G_ichem":G_ichem,"G_suzun_tng":G_suzun_tng,"K_payaha":tstn_inputs.get("K_payaha"), "V_gnps":tstn_results.get("V_gnps"),"V_tstn_rn_vn":tstn_results.get("V_tstn_rn_vn"),
-        "V_tstn_tagul_obch":tstn_results.get("V_tstn_tagul_obch"),"V_tstn_suzun_vslu":tstn_results.get("V_tstn_suzun_vslu"),"V_tstn_suzun_prev":V_tstn_suzun_prev,
-        "V_knps_prev":V_knps_prev, "V_nps_1_prev":V_nps_1_prev, "V_nps_2_prev":V_nps_2_prev,"VN_knps_min":VN_knps_min,"V_tstn_norm_suzun":V_tstn_norm_suzun,
-        "flag_sost":flag_sost,"V_tstn_suzun_vankor_prev":V_tstn_suzun_vankor_prev,"V_tstn_norm_suzun_vankor":V_tstn_norm_suzun_vankor,
-        "V_tstn_norm_lodochny":V_tstn_norm_lodochny,"V_tstn_lodochny_prev":V_tstn_lodochny_prev,"V_tstn_norm_tagul":V_tstn_norm_tagul,"V_tstn_tagul_prev":V_tstn_tagul_prev,
-        "V_tstn_norm_skn":V_tstn_norm_skn,"V_tstn_skn_prev":V_tstn_skn_prev, "V_tstn_norm_vo":V_tstn_norm_vo, "V_tstn_vo_prev":V_tstn_vo_prev,"V_tstn_norm_tng":V_tstn_norm_tng,
-        "V_tstn_tng_prev":V_tstn_tng_prev, "V_tstn_norm_kchng":V_tstn_norm_kchng, "V_tstn_kchng_prev":V_tstn_kchng_prev, "V_tstn_norm_vn":V_tstn_norm_vn,"V_tstn_suzun_vankor":tstn_results.get("V_tstn_suzun_vankor"),
-        "F_bp":rn_results.get("F_bp"),
-        "F_suzun_month_prev": F_suzun_month_prev,
-        "F_suzun_vankor_month_prev": F_suzun_vankor_month_prev,
-        "F_suzun_vslu_month_prev": F_suzun_vslu_month_prev,
-        "F_tagul_lpu_month_prev": F_tagul_lpu_month_prev,
-        "F_tagul_tpu_month_prev": F_tagul_tpu_month_prev,
-        "F_tagul_month_prev": F_tagul_month_prev,
-        "F_skn_month_prev": F_skn_month_prev,
-        "F_vo_month_prev": F_vo_month_prev,
-        "F_tng_month_prev": F_tng_month_prev,
-        "F_kchng_month_prev": F_kchng_month_prev,
-        "F_vn_month_prev": F_vn_month_prev,
-        "F_month_prev": F_month_prev,
+        "Start_autobalance":Start_autobalance,
+        "V_tstn_suzun_norm":V_tstn_suzun_norm,
+        "VN_knps_min":VN_knps_min,
+        "V_tstn_kchng_norm":V_tstn_kchng_norm,
+        "V_tstn_tng_norm":V_tstn_tng_norm,
+        "V_tstn_vo_norm":V_tstn_vo_norm,
+        "V_tstn_skn_norm":V_tstn_skn_norm,
+        "V_tstn_tagul_norm":V_tstn_tagul_norm,
+        "V_tstn_suzun_vankor_norm":V_tstn_suzun_vankor_norm,
+        "V_tstn_vn_norm":V_tstn_vn_norm,
+        "V_tstn_lodochny_norm":V_tstn_lodochny_norm,
+        "V_nps_1":V_nps_1,
+        "V_nps_2":V_nps_2,
+        "G_suzun_slu":G_suzun_slu,
+        "K_suzun":K_suzun,
+        "G_gnps":G_gnps,
+        "G_tagul":G_tagul,
+        "G_upn_lodochny":G_upn_lodochny,
+        "G_skn":G_skn,
+        "G_kchng":G_kchng,
+        "G_buying_oil":G_buying_oil,
+        "G_suzun_tng":G_suzun_tng,
+        "K_payaha":K_payaha,
+        "K_ichem":K_ichem,
+        "G_ichem":G_ichem,
+        "K_skn":K_skn,
+        "K_tagul":K_tagul,
+        "G_per":G_per,
+        "G_sikn_tagul":G_sikn_tagul,
+        "G_lodochny":G_lodochny,
+        "V_gnps":V_gnps,
+        "V_tstn_rn_vn":V_tstn_rn_vn,
+        "K_vankor":K_vankor,
+        "K_lodochny":K_lodochny,
+        "V_tstn_suzun_prev":V_tstn_suzun_prev,
+        "V_tstn_suzun_vslu_prev":V_tstn_suzun_vslu_prev,
+        "V_nps_2_prev":V_nps_2_prev,
+        "V_nps_1_prev":V_nps_1_prev,
+        "V_tstn_suzun_vankor_prev":V_tstn_suzun_vankor_prev,
+        "V_tstn_tagul_prev":V_tstn_tagul_prev,
+        "V_knps_prev":V_knps_prev,
+        "V_tstn_lodochny_prev":V_tstn_lodochny_prev,
+        "V_tstn_skn_prev":V_tstn_skn_prev,
+        "V_tstn_tng_prev":V_tstn_tng_prev,
+        "V_tstn_vo_prev":V_tstn_vo_prev,
+        "V_tstn_kchng_prev":V_tstn_kchng_prev,
+        "F_bp_tagul_lpu":F_bp_tagul_lpu,
+        "F_bp_tagul_tpu":F_bp_tagul_tpu,
+        "F_bp_suzun_vankor":F_bp_suzun_vankor,
+        "F_bp_suzun_vslu":F_bp_suzun_vslu,
+        "F_bp_skn":F_bp_skn,
+        "F_bp_vo":F_bp_vo,
+        "F_bp_tng":F_bp_tng,
+        "F_bp_kchng":F_bp_kchng,
+        "F_bp_vn":F_bp_vn,
+        "F_bp_suzun":F_bp_suzun,
+        "F_bp":F_bp,
+        "G_suzun_vslu":G_suzun_vslu,
+ }
+
+def get_bp_month_data(master_df, month, N, day):
+    F_suzun_vankor = _get_month_scalar_values(master_df,"F_suzun_vankor",month )
+    F_tagul_lpu = _get_month_scalar_values(master_df,"F_tagul_lpu",month )
+    F_tagul_tpu = _get_month_scalar_values(master_df,"F_tagul_tpu",month )
+    F_vn = _get_month_scalar_values(master_df,"F_vn",month )
+    F = _get_month_scalar_values(master_df,"F",month )
+    F_skn = _get_month_scalar_values(master_df,"F_skn",month )
+    F_vo = _get_month_scalar_values(master_df,"F_vo",month )
+    F_tng = _get_month_scalar_values(master_df,"F_tng",month )
+    F_kchng = _get_month_scalar_values(master_df,"F_kchng",month )
+    F_suzun_vslu = _get_month_scalar_values(master_df,"F_suzun_vslu",month )
+    F_tagul = _get_month_scalar_values(master_df,"F_tagul",month )
+    return{
+        "F_suzun_vankor":F_suzun_vankor,
+        "F_tagul_lpu":F_tagul_lpu,
+        "F_tagul_tpu":F_tagul_tpu,
+        "F_vn":F_vn,
+        "F":F,
+        "F_skn":F_skn,
+        "F_vo":F_vo,
+        "F_tng":F_tng,
+        "F_kchng":F_kchng,
+        "F_suzun_vslu":F_suzun_vslu,
+        "F_tagul":F_tagul,
+        "N":N,
+        "day":day
     }
+def get_availability_oil_data (master_df, n, prev_day):
+    V_tstn_suzun_vslu_prev = _get_day_value(master_df,"V_tstn_suzun_vslu",prev_day)
+    F_suzun_vslu = _get_day_value(master_df,"F_suzun_vslu",n)
+    G_suzun_vslu = _get_day_value(master_df,"G_suzun_vslu",n)
+    K_suzun = _get_day_value(master_df,"K_suzun",n)
+    V_tstn_tagul_prev = _get_day_value(master_df,"V_tstn_tagul",prev_day)
+    G_tagul = _get_day_value(master_df,"G_tagul",n)
+    F_tagul_tpu = _get_day_value(master_df,"F_tagul_tpu",n)
+    K_tagul = _get_day_value(master_df,"K_tagul",n)
+    V_tstn_lodochny_prev = _get_day_value(master_df,"V_tstn_lodochny",prev_day)
+    G_sikn_tagul = _get_day_value(master_df,"G_sikn_tagul",n)
+    G_lodochny = _get_day_value(master_df,"G_lodochny",n)
+    F_tagul_lpu = _get_day_value(master_df,"F_tagul_lpu",n)
+    K_lodochny = _get_day_value(master_df,"K_lodochny",n)
+    V_tstn_suzun_prev = _get_day_value(master_df,"V_tstn_suzun",prev_day)
+    F_suzun = _get_day_value(master_df,"F_suzun",n)
+    G_suzun_slu = _get_day_value(master_df,"G_suzun_slu",n)
+    V_tstn_suzun_vankor_prev = _get_day_value(master_df,"V_tstn_suzun_vankor",prev_day)
+    F_suzun_vankor = _get_day_value(master_df,"F_suzun_vankor",n)
+    G_buying_oil = _get_day_value(master_df,"G_buying_oil",n)
+    G_per = _get_day_value(master_df,"G_per",n)
+    K_vankor = _get_day_value(master_df,"K_vankor",n)
+    V_tstn_skn_prev = _get_day_value(master_df,"V_tstn_skn",prev_day)
+    F_skn = _get_day_value(master_df,"F_skn",n)
+    G_skn = _get_day_value(master_df,"G_skn",n)
+    K_skn = _get_day_value(master_df,"K_skn",n)
+    V_tstn_vo_prev = _get_day_value(master_df,"V_tstn_vo",prev_day)
+    G_ichem = _get_day_value(master_df,"G_ichem",n)
+    F_vo = _get_day_value(master_df,"F_vo",n)
+    K_ichem = _get_day_value(master_df,"K_ichem",n)
+    K_payaha = _get_day_value(master_df,"K_payaha",n)
+    F_tng = _get_day_value(master_df,"F_tng",n)
+    V_tstn_tng_prev = _get_day_value(master_df,"V_tstn_tng",prev_day)
+    G_suzun_tng = _get_day_value(master_df,"G_suzun_tng",n)
+    V_tstn_kchng_prev = _get_day_value(master_df,"V_tstn_kchng",prev_day)
+    G_kchng = _get_day_value(master_df,"G_kchng",n)
+    F_kchng = _get_day_value(master_df,"F_kchng",n)
+    G_upn_lodochny = _get_day_value(master_df,"G_upn_lodochny",n)
+    V_knps_prev = _get_day_value(master_df,"V_knps",prev_day)
+    F = _get_day_value(master_df,"F",n)
+    G_gnps = _get_day_value(master_df,"G_gnps",n)
+    V_nps_2 = _get_day_value(master_df,"V_nps_2",n)
+    V_nps_1 = _get_day_value(master_df,"V_nps_1",n)
+    V_nps_2_prev = _get_day_value(master_df,"V_nps_2",prev_day)
+    V_nps_1_prev = _get_day_value(master_df,"V_nps_1",prev_day)
+    V_gnps = _get_day_value(master_df,"V_gnps",n)
+    V_tstn_rn_vn = _get_day_value(master_df,"V_tstn_rn_vn",n)
+    return{
+        "V_tstn_suzun_vslu_prev":V_tstn_suzun_vslu_prev,
+        "F_suzun_vslu":F_suzun_vslu,
+        "G_suzun_vslu":G_suzun_vslu,
+        "K_suzun":K_suzun,
+        "V_tstn_tagul_prev":V_tstn_tagul_prev,
+        "G_tagul":G_tagul,
+        "F_tagul_tpu":F_tagul_tpu,
+        "K_tagul":K_tagul,
+        "V_tstn_lodochny_prev":V_tstn_lodochny_prev,
+        "G_sikn_tagul":G_sikn_tagul,
+        "G_lodochny":G_lodochny,
+        "F_tagul_lpu":F_tagul_lpu,
+        "K_lodochny":K_lodochny,
+        "V_tstn_suzun_prev":V_tstn_suzun_prev,
+        "F_suzun":F_suzun,
+        "G_suzun_slu":G_suzun_slu,
+        "V_tstn_suzun_vankor_prev":V_tstn_suzun_vankor_prev,
+        "F_suzun_vankor":F_suzun_vankor,
+        "G_buying_oil":G_buying_oil,
+        "G_per":G_per,
+        "K_vankor":K_vankor,
+        "V_tstn_skn_prev":V_tstn_skn_prev,
+        "F_skn":F_skn,
+        "G_skn":G_skn,
+        "K_skn":K_skn,
+        "V_tstn_vo_prev":V_tstn_vo_prev,
+        "G_ichem":G_ichem,
+        "F_vo":F_vo,
+        "K_ichem":K_ichem,
+        "K_payaha":K_payaha,
+        "F_tng":F_tng,
+        "V_tstn_tng_prev":V_tstn_tng_prev,
+        "G_suzun_tng":G_suzun_tng,
+        "V_tstn_kchng_prev":V_tstn_kchng_prev,
+        "G_kchng":G_kchng,
+        "F_kchng":F_kchng,
+        "G_upn_lodochny":G_upn_lodochny,
+        "V_knps_prev":V_knps_prev,
+        "F":F,
+        "G_gnps":G_gnps,
+        "V_nps_2":V_nps_2,
+        "V_nps_1":V_nps_1,
+        "V_nps_2_prev":V_nps_2_prev,
+        "V_nps_1_prev":V_nps_1_prev,
+        "V_gnps":V_gnps,
+        "V_tstn_rn_vn":V_tstn_rn_vn,
+}
 
-def prepare_auto_balance_volumes_data(master_df, prev_day, N, suzun_results):
-    flag_sost = _get_const(master_df, "flag_sost")
-    return {
-        "V_upn_suzun_prev": _get_day_value(master_df, "V_upn_suzun", prev_day, scalar=True),
-        "flag_sost": flag_sost,
-        "V_upn_suzun_0": _get_const(master_df, "V_upn_suzun_0"),
-        "VN_upn_suzun_min": _get_const(master_df, "VN_upn_suzun_min"),
-        "V_upn_lodochny_0": _get_const(master_df, "V_upn_lodochny_0"),
-        "VN_upn_lodochny_min": _get_const(master_df, "VN_upn_lodochny_min"),
-        "V_upsv_yu_0": _get_const(master_df, "V_upsv_yu_0"),
-        "VN_upsv_yu_min": _get_const(master_df, "VN_upsv_yu_min"),
-        "V_upsv_s_0": _get_const(master_df, "V_upsv_s_0"),
-        "VN_upsv_s_min": _get_const(master_df, "V_upsv_min"),
-        "V_cps_0": _get_const(master_df, "V_cps_0"),
-        "VN_cps_min": _get_const(master_df, "VN_cps_min"),
-        "V_upn_lodochny_prev": _get_day_value(master_df, "V_upn_lodochny", prev_day, scalar=True),
-        "V_upsv_yu_prev": _get_day_value(master_df, "V_upsv_yu", prev_day, scalar=True),
-        "V_upsv_s_prev": _get_day_value(master_df, "V_upsv_s", prev_day, scalar=True),
-        "V_cps_prev": _get_day_value(master_df, "V_cps", prev_day, scalar=True),
-        "N": N,
-        "_V_upn_suzun": suzun_results.get("V_upn_suzun"),
-    }
-
-def prepare_tstn_data(master_df, N, prev_day, sikn_1208_results, lodochny_results, kchng_results, suzun_results, G_ichem, G_suzun_tng, auto_balance_results, tstn_precalc_results):
-    V_gnps_0 = _get_const(master_df, "V_gnps_0")
-    V_nps_1_0 = _get_const(master_df, "V_nps_1_0")
-    V_nps_2_0 = _get_const(master_df, "V_nps_2_0")
-    V_knps_0 = _get_const(master_df, "V_knps_0")
-    V_suzun_slu_0 = _get_const(master_df, "V_suzun_slu_0")
-    V_tstn_suzun_vankor_0 = _get_const(master_df, "V_tstn_suzun_vankor_0")
-    V_tstn_suzun_vslu_0 = _get_const(master_df, "V_tstn_suzun_vslu_0")
-    V_tstn_tagul_0 = _get_const(master_df, "V_tstn_tagul_0")
-    V_tstn_lodochny_0 = _get_const(master_df, "V_tstn_lodochny_0")
-    V_tstn_rn_vn_0 = _get_const(master_df, "V_tstn_rn_vn_0")
-    V_tstn_skn_0 = _get_const(master_df, "V_tstn_skn_0")
-    V_tstn_vo_0 = _get_const(master_df, "V_tstn_vo_0")
-    V_tstn_tng_0 = _get_const(master_df, "V_tstn_tng_0")
-    V_tstn_kchng_0 = _get_const(master_df, "V_tstn_kchng_0")
-
-    V_knps_prev = _get_day_value(master_df, "V_knps", prev_day, scalar=True)
-    V_gnps_prev = _get_day_value(master_df, "V_gnps", prev_day, scalar=True)
-    V_nps_1_prev = _get_day_value(master_df, "V_nps_1", prev_day, scalar=True)
-    V_nps_2_prev = _get_day_value(master_df, "V_nps_2", prev_day, scalar=True)
-    V_tstn_suzun_vslu_prev = _get_day_value(master_df, "V_tstn_suzun_vslu", prev_day, scalar=True)
-    V_tstn_suzun_vankor_prev = _get_day_value(master_df, "V_tstn_suzun_vankor", prev_day, scalar=True)
-    V_tstn_suzun_prev = _get_day_value(master_df, "V_tstn_suzun", prev_day, scalar=True)
-    V_tstn_skn_prev = _get_day_value(master_df, "V_tstn_skn", prev_day, scalar=True)
-    V_tstn_vo_prev = _get_day_value(master_df, "V_tstn_vo", prev_day, scalar=True)
-    V_tstn_tng_prev = _get_day_value(master_df, "V_tstn_tng", prev_day, scalar=True)
-    V_tstn_tagul_prev = _get_day_value(master_df, "V_tstn_tagul", prev_day, scalar=True)
-    V_tstn_kchng_prev = _get_day_value(master_df, "V_tstn_kchng", prev_day, scalar=True)
-    V_tstn_lodochny_prev = _get_day_value(master_df, "V_tstn_lodochny", prev_day, scalar=True)
-    V_tstn_rn_vn_prev = _get_day_value(master_df, "V_tstn_rn_vn", prev_day, scalar=True)
-
-
-
-    VN_min_gnps = _get_const(master_df, "VN_min_gnps")
-    flag_list = [0,1,0]
-    return {
-        "V_gnps_0": V_gnps_0, "N": N, "VN_min_gnps": VN_min_gnps, "G_sikn": _to_scalar(sikn_1208_results.get("G_sikn")),
-        "V_gnps_prev": V_gnps_prev, "flag_list": flag_list, "V_nps_1_prev": V_nps_1_prev,
-        "V_nps_2_prev": V_nps_2_prev, "G_tagul": _to_scalar(lodochny_results.get("G_tagul")), "G_upn_lodochny": _to_scalar(lodochny_results.get("G_upn_lodochny")),
-        "G_kchng": _to_scalar(kchng_results.get("G_kchng")), "V_knps_prev": V_knps_prev, "V_nps_1_0": V_nps_1_0, "V_nps_2_0": V_nps_2_0,
-        "V_knps_0": V_knps_0, "G_suzun_vslu": _to_scalar(suzun_results.get("G_suzun_vslu")), "V_tstn_suzun_vslu_prev": V_tstn_suzun_vslu_prev,
-        "V_tstn_suzun_vankor_prev": V_tstn_suzun_vankor_prev,"G_buy_day": _to_scalar(suzun_results.get("G_buy_day")), "G_per": _to_scalar(suzun_results.get("G_per")),
-        "V_suzun_slu_0": V_suzun_slu_0,"V_tstn_suzun_prev": V_tstn_suzun_prev, "G_suzun_slu": _to_scalar(suzun_results.get("G_suzun_slu")),
-        "V_tstn_skn_prev": V_tstn_skn_prev, "V_tstn_vo_prev": V_tstn_vo_prev, "G_ichem": G_ichem,
-        "G_suzun_tng": G_suzun_tng, "V_tstn_tng_prev": V_tstn_tng_prev, "V_tstn_tagul_prev": V_tstn_tagul_prev,
-        "V_tstn_kchng_prev": V_tstn_kchng_prev, "V_tstn_lodochny_prev": V_tstn_lodochny_prev,
-        "G_sikn_tagul": _to_scalar(sikn_1208_results.get("G_sikn_tagul")), "V_tstn_rn_vn_prev": V_tstn_rn_vn_prev,
-        "G_lodochny": lodochny_results.get("G_lodochny"), "V_tstn_suzun_vankor_0":V_tstn_suzun_vankor_0, "V_tstn_suzun_vslu_0":V_tstn_suzun_vslu_0,
-        "V_tstn_tagul_0":V_tstn_tagul_0, "V_tstn_lodochny_0":V_tstn_lodochny_0, "V_tstn_rn_vn_0":V_tstn_rn_vn_0, "V_tstn_suzun_vankor_0":V_tstn_suzun_vankor_0,
-        "V_tstn_suzun_vslu_0":V_tstn_suzun_vslu_0, "V_tstn_skn_0":V_tstn_skn_0, "V_tstn_vo_0":V_tstn_vo_0, "V_tstn_tng_0":V_tstn_tng_0,
-        "V_tstn_kchng_0":V_tstn_kchng_0,"F":auto_balance_results.get("F"),"F_suzun_vslu":auto_balance_results.get("F_suzun_vslu"),
-        "F_suzun_vankor":auto_balance_results.get("F_suzun_vankor"), "F_suzun":auto_balance_results.get("F_suzun"), "F_skn":auto_balance_results.get("F_skn"),
-        "F_vo":auto_balance_results.get("F_vo"), "F_tng":auto_balance_results.get("F_tng"), "F_kchng":auto_balance_results.get("F_kchng"),
-        "F_tagul":auto_balance_results.get("F_tagul"),"F_tagul_lpu":auto_balance_results.get("F_tagul_lpu"), "F_tagul_tpu":auto_balance_results.get("F_tagul_tpu"),
-        "G_gnps_i": tstn_precalc_results.get("G_gnps_i"),
-        "G_gnps": tstn_precalc_results.get("G_gnps"),
-        "V_gnps": tstn_precalc_results.get("V_gnps"),
-        "V_nps_1": tstn_precalc_results.get("V_nps_1"),
-        "V_nps_2": tstn_precalc_results.get("V_nps_2"),
-        "V_tstn_suzun_vslu": tstn_precalc_results.get("V_tstn_suzun_vslu"),
-        "V_tstn_suzun_vankor": tstn_precalc_results.get("V_tstn_suzun_vankor"),
-        "V_tstn_tagul": tstn_precalc_results.get("V_tstn_tagul"),
-        "V_tstn_lodochny": tstn_precalc_results.get("V_tstn_lodochny"),
-        "V_tstn_tagul_obch": tstn_precalc_results.get("V_tstn_tagul_obch"),
-        "V_tstn_rn_vn": tstn_precalc_results.get("V_tstn_rn_vn"),
-    }
-
-
-def prepare_tstn_precalc_data(master_df, prev_day, N, sikn_1208_results, lodochny_results, suzun_results, rn_results, tstn_inputs):
-
-    return {
-        "V_gnps_0": _get_const(master_df, "V_gnps_0"),
-        "VN_min_gnps": _get_const(master_df, "VN_min_gnps"),
-        "N": N,
-        "G_sikn": _to_scalar(sikn_1208_results.get("G_sikn")),
-        "manual_G_gnps_i": tstn_inputs.get("manual_G_gnps_i"),
-        "V_gnps_prev": _get_day_value(master_df, "V_gnps", prev_day, scalar=True),
-        "V_nps_1_prev": _get_day_value(master_df, "V_nps_1", prev_day, scalar=True),
-        "V_nps_2_prev": _get_day_value(master_df, "V_nps_2", prev_day, scalar=True),
-        "V_tstn_suzun_vslu_prev": _get_day_value(master_df, "V_tstn_suzun_vslu", prev_day, scalar=True),
-        "F_suzun_vslu": rn_results.get("F_bp_suzun_vslu"),
-        "G_suzun_vslu": _to_scalar(suzun_results.get("G_suzun_vslu")),
-        "K_suzun": tstn_inputs.get("K_suzun"),
-        "V_tstn_tagul_prev": _get_day_value(master_df, "V_tstn_tagul", prev_day, scalar=True),
-        "G_tagul": lodochny_results.get("G_tagul"),
-        "F_tagul_tpu": rn_results.get("F_bp_tagul_tpu"),
-        "K_tagul": tstn_inputs.get("K_tagul"),
-        "V_tstn_lodochny_prev": _get_day_value(master_df, "V_tstn_lodochny", prev_day, scalar=True),
-        "G_sikn_tagul": lodochny_results.get("G_sikn_tagul"),
-        "G_lodochny": lodochny_results.get("G_lodochny"),
-        "F_tagul_lpu": rn_results.get("F_bp_tagul_lpu"),
-        "K_lodochny": tstn_inputs.get("K_lodochny"),
-        "V_tstn_rn_vn_prev": _get_day_value(master_df, "V_tstn_rn_vn", prev_day, scalar=True),
-    }
-
-def rn_vankor_check_data(master_df, n, prev_day, tstn_results, lodochny_results, suzun_results, cppn1_results, auto_balance_results):
-    def _val(value):
-        return value.get("value") if isinstance(value, dict) else value
-    VA_upsv_yu_min = _get_const(master_df, "VA_upsv_yu_min")
-    VA_upsv_yu_max = _get_const(master_df, "VA_upsv_yu_max")
-    V_delta_upsv_yu_max = _get_const(master_df,"V_delta_upsv_yu_max")
-    VO_delta_upsv_yu_max = _get_const(master_df,"VO_delta_upsv_yu_max")
-    VA_upsv_s_min = _get_const(master_df, "VA_upsv_s_min")
-    VA_upsv_s_max = _get_const(master_df, "VA_upsv_s_max")
-    V_delta_upsv_s_max = _get_const(master_df,"V_delta_upsv_s_max")
-    VO_delta_upsv_s_max = _get_const(master_df,"VO_delta_upsv_s_max")
-    VA_cps_min = _get_const(master_df, "VA_cps_min")
-    VA_cps_max = _get_const(master_df, "VA_cps_max")
-    V_delta_cps_max = _get_const(master_df,"V_delta_cps_max")
-    VO_delta_cps_max = _get_const(master_df,"VO_delta_cps_max")
+def get_rn_vankor_check_data(master_df, n, prev_day):
+    VA_upsv_yu_min = _get_const(master_df,"VA_upsv_yu_min")
+    V_upsv_yu = _get_day_value(master_df,"V_upsv_yu",n)
+    VA_upsv_yu_max = _get_const(master_df,"VA_upsv_yu_max")
+    V_upsv_yu_prev = _get_day_value(master_df,"V_upsv_yu",prev_day)
+    delta_V_upsv_yu_max = _get_const(master_df,"delta_V_upsv_yu_max")
+    delta_VO_upsv_yu_max = _get_const(master_df,"delta_VO_upsv_yu_max")
+    VA_upsv_s_min = _get_const(master_df,"VA_upsv_s_min")
+    V_upsv_s = _get_day_value(master_df,"V_upsv_s",n)
+    VA_upsv_s_max = _get_const(master_df,"VA_upsv_s_max")
+    V_upsv_s_prev = _get_day_value(master_df,"V_upsv_s",prev_day)
+    delta_V_upsv_s_max = _get_const(master_df,"delta_V_upsv_s_max")
+    delta_VO_upsv_s_max = _get_const(master_df,"delta_VO_upsv_s_max")
+    VA_cps_min = _get_const(master_df,"VA_cps_min")
+    V_cps = _get_day_value(master_df,"V_cps",n)
+    VA_cps_max = _get_const(master_df,"VA_cps_max")
+    V_cps_prev = _get_day_value(master_df,"V_cps",prev_day)
+    delta_V_cps_max = _get_const(master_df,"delta_V_cps_max")
+    delta_VO_cps_max = _get_const(master_df,"delta_VO_cps_max")
     VA_upn_suzun_min = _get_const(master_df,"VA_upn_suzun_min")
+    V_upn_suzun = _get_day_value(master_df,"V_upn_suzun",n)
     VA_upn_suzun_max = _get_const(master_df,"VA_upn_suzun_max")
-    V_delta_upn_suzun_max = _get_const(master_df,"V_delta_upn_suzun_max")
-    VO_delta_upn_suzun_max = _get_const(master_df,"VO_delta_upn_suzun_max")
+    V_upn_suzun_prev = _get_day_value(master_df,"V_upn_suzun",prev_day)
+    delta_V_upn_suzun_max = _get_const(master_df,"delta_V_upn_suzun_max")
+    delta_VO_upn_suzun_max = _get_const(master_df,"delta_VO_upn_suzun_max")
     VA_upn_lodochny_min = _get_const(master_df,"VA_upn_lodochny_min")
+    V_upn_lodochny = _get_day_value(master_df,"V_upn_lodochny",n)
     VA_upn_lodochny_max = _get_const(master_df,"VA_upn_lodochny_max")
-    V_delta_upn_lodochny_max = _get_const(master_df,"V_delta_upn_lodochny_max")
-    VO_upn_lodochny_max = _get_const(master_df,"VO_upn_lodochny_max")
+    V_upn_lodochny_prev = _get_day_value(master_df,"V_upn_lodochny",prev_day)
+    delta_V_upn_lodochny_max = _get_const(master_df,"delta_V_upn_lodochny_max")
+    delta_VO_upn_lodochny_max = _get_const(master_df,"delta_VO_upn_lodochny_max")
     VA_tagul_min = _get_const(master_df,"VA_tagul_min")
+    V_tagul_tr = _get_day_value(master_df,"V_tagul_tr",n)
     VA_tagul_max = _get_const(master_df,"VA_tagul_max")
     VA_gnps_min = _get_const(master_df,"VA_gnps_min")
+    V_gnps = _get_day_value(master_df,"V_gnps",n)
     VA_gnps_max = _get_const(master_df,"VA_gnps_max")
-    V_delta_gnps_max = _get_const(master_df,"V_delta_gnps_max")
-    VO_gnps_max = _get_const(master_df,"VO_gnps_max")
+    V_gnps_prev = _get_day_value(master_df,"V_gnps",prev_day)
+    delta_V_gnps_max = _get_const(master_df,"delta_V_gnps_max")
+    delta_VO_gnps_max = _get_const(master_df,"delta_VO_gnps_max")
     VA_nps_1_min = _get_const(master_df,"VA_nps_1_min")
+    V_nps_1 = _get_day_value(master_df,"V_nps_1",n)
     VA_nps_1_max = _get_const(master_df,"VA_nps_1_max")
-    V_delta_nps_1_max = _get_const(master_df,"V_delta_nps_1_max")
-    VO_nps_1_max = _get_const(master_df,"VO_nps_1_max")
+    V_nps_1_prev = _get_day_value(master_df,"V_nps_1",prev_day)
+    delta_V_nps_1_max = _get_const(master_df,"delta_V_nps_1_max")
+    delta_VO_nps_1_max = _get_const(master_df,"delta_VO_nps_1_max")
     VA_nps_2_min = _get_const(master_df,"VA_nps_2_min")
+    V_nps_2 = _get_day_value(master_df,"V_nps_2",n)
     VA_nps_2_max = _get_const(master_df,"VA_nps_2_max")
-    V_delta_nps_2_max = _get_const(master_df,"V_delta_nps_2_max")
-    VO_nps_2_max = _get_const(master_df,"VO_nps_2_max")
-    VN_knps_min = _get_const(master_df,"VA_knps_min")
-    VN_knps_max = _get_const(master_df,"VA_knps_max")
-    V_delta_knps_max = _get_const(master_df,"V_delta_knps_max")
-    VO_knps_max = _get_const(master_df,"VO_knps_max")
+    V_nps_2_prev = _get_day_value(master_df,"V_nps_2",prev_day)
+    delta_V_nps_2_max = _get_const(master_df,"delta_V_nps_2_max")
+    delta_VO_nps_2_max = _get_const(master_df,"delta_VO_nps_2_max")
+    VN_knps_min = _get_const(master_df,"VN_knps_min")
+
+    V_knps = _get_day_value(master_df,"V_knps",n)
+    VA_knps_max = _get_const(master_df,"VA_knps_max")
+    V_knps_prev = _get_day_value(master_df,"V_knps",prev_day)
+    delta_V_knps_max = _get_const(master_df,"delta_V_knps_max")
+    delta_VO_knps_max = _get_const(master_df,"delta_VO_knps_max")
     V_ichem_min = _get_const(master_df,"V_ichem_min")
+    V_ichem = _get_day_value(master_df,"V_ichem",n)
     V_ichem_max = _get_const(master_df,"V_ichem_max")
-    V_tstn_min = _get_const(master_df,"V_tstn_min")
-    V_tstn_max = _get_const(master_df,"V_tstn_max")
+    V_lodochny_cps_upsv_yu = _get_day_value(master_df,"V_lodochny_cps_upsv_yu",n)
+    G_sikn_tagul = _get_day_value(master_df,"G_sikn_tagul",n)
+    V_tstn_vn_min = _get_const(master_df,"V_tstn_vn_min")
+    V_tstn_vn = _get_day_value(master_df,"V_tstn_vn",n)
+    V_tstn_vn_max = _get_const(master_df,"V_tstn_vn_max")
     V_tstn_suzun_min = _get_const(master_df,"V_tstn_suzun_min")
+    V_tstn_suzun = _get_day_value(master_df,"V_tstn_suzun",n)
     V_tstn_suzun_max = _get_const(master_df,"V_tstn_suzun_max")
     V_tstn_suzun_vankor_min = _get_const(master_df,"V_tstn_suzun_vankor_min")
-    V_tstn_suzun_vankor_max =_get_const(master_df,"V_tstn_suzun_vankor_max")
+    V_tstn_suzun_vankor = _get_day_value(master_df,"V_tstn_suzun_vankor",n)
+    V_tstn_suzun_vankor_max = _get_const(master_df,"V_tstn_suzun_vankor_max")
     V_tstn_suzun_vslu_min = _get_const(master_df,"V_tstn_suzun_vslu_min")
+    V_tstn_suzun_vslu = _get_day_value(master_df,"V_tstn_suzun_vslu",n)
     V_tstn_suzun_vslu_max = _get_const(master_df,"V_tstn_suzun_vslu_max")
-    V_tstn_tagul_obch_min = _get_const(master_df,"V_tstn_tagul_obch_min")
-    V_tstn_tagul_min = _get_const(master_df, "V_tstn_tagul_min")
-    V_tstn_tagul_max = _get_const(master_df, "V_tstn_tagul_max")
-    V_tstn_tagul_obch_max = _get_const(master_df,"V_tstn_tagul_obch_max")
+    V_tstn_tagul_obsh_min = _get_const(master_df,"V_tstn_tagul_obsh_min")
+    V_tstn_tagul_obsh = _get_day_value(master_df,"V_tstn_tagul_obsh",n)
+    V_tstn_tagul_obsh_max = _get_const(master_df,"V_tstn_tagul_obsh_max")
     V_tstn_lodochny_min = _get_const(master_df,"V_tstn_lodochny_min")
+    V_tstn_lodochny = _get_day_value(master_df,"V_tstn_lodochny",n)
     V_tstn_lodochny_max = _get_const(master_df,"V_tstn_lodochny_max")
+    V_tstn_tagul_min = _get_const(master_df,"V_tstn_tagul_min")
+    V_tstn_tagul = _get_day_value(master_df,"V_tstn_tagul",n)
+    V_tstn_tagul_max = _get_const(master_df,"V_tstn_tagul_max")
     V_tstn_skn_min = _get_const(master_df,"V_tstn_skn_min")
+    V_tstn_skn = _get_day_value(master_df,"V_tstn_skn",n)
     V_tstn_skn_max = _get_const(master_df,"V_tstn_skn_max")
     V_tstn_vo_min = _get_const(master_df,"V_tstn_vo_min")
+    V_tstn_vo = _get_day_value(master_df,"V_tstn_vo",n)
     V_tstn_vo_max = _get_const(master_df,"V_tstn_vo_max")
     V_tstn_tng_min = _get_const(master_df,"V_tstn_tng_min")
+    V_tstn_tng = _get_day_value(master_df,"V_tstn_tng",n)
     V_tstn_tng_max = _get_const(master_df,"V_tstn_tng_max")
     V_tstn_kchng_min = _get_const(master_df,"V_tstn_kchng_min")
+    V_tstn_kchng = _get_day_value(master_df,"V_tstn_kchng",n)
     V_tstn_kchng_max = _get_const(master_df,"V_tstn_kchng_max")
-    p_gnps = _get_const(master_df,"p_gnps")
-    Q_gnps_min_1 = _get_const(master_df,"Q_gnps_min_1")
-    Q_gnps_max_2 = _get_const(master_df, "Q_gnps_max_2")
-    Q_gnps_max_1 = _get_const(master_df,"Q_gnps_max_1")
-    p_nps_1_2 = _get_const(master_df,"p_nps_1_2")
-    Q_nps_1_2_min_1 = _get_const(master_df,"Q_nps_1_2_min_1")
-    Q_nps_1_2_max_2 = _get_const(master_df,"Q_nps_1_2_max_2")
-    Q_nps_1_2_max_1 = _get_const(master_df,"Q_nps_1_2_max_1")
-    p_knps = _get_const(master_df, "p_knps")
-    Q_knps_min_1 = _get_const(master_df, "Q_knps_min_1")
-    Q_knps_max_2 = _get_const(master_df, "Q_knps_max_2")
-    Q_knps_max_1 = _get_const(master_df, "Q_knps_max_1")
-    
-
-    V_upsv_yu_prev = _get_day_value(master_df, "V_upsv_yu", prev_day, scalar=True)
-    V_upsv_s_prev = _get_day_value(master_df, "V_upsv_s", prev_day, scalar=True)
-    V_cps_prev = _get_day_value(master_df, "V_cps", prev_day, scalar=True)
-    V_upn_suzun_prev = _get_day_value(master_df, "V_upn_suzun", prev_day, scalar=True)
-    V_upn_lodochny_prev = _get_day_value(master_df, "V_upn_lodochny", prev_day, scalar=True)
-    V_tagul = _get_day_value(master_df, "V_tagul", n, scalar=True)
-    V_gnps_prev = _get_day_value(master_df, "V_gnps", prev_day, scalar=True)
-    V_nps_1_prev = _get_day_value(master_df, "V_nps_1", prev_day, scalar=True)
-    V_nps_2_prev = _get_day_value(master_df, "V_nps_2", prev_day, scalar=True)
-    V_knps_prev = _get_day_value(master_df, "V_knps", prev_day, scalar=True)
+    G_gnps = _get_day_value(master_df,"G_gnps",n)
+    p_gnps = _get_day_value(master_df,"p_gnps",n)
+    Q_gnps_min1 = _get_const(master_df,"Q_gnps_min1")
+    Q_gnps_max2 = _get_const(master_df,"Q_gnps_max2")
+    Q_gnps_max1 = _get_const(master_df,"Q_gnps_max1")
+    G_tagul_lodochny = _get_day_value(master_df,"G_tagul_lodochny",n)
+    p_nps_1_2 = _get_day_value(master_df,"p_nps_1_2",n)
+    Q_nps_1_2_min1 = _get_const(master_df,"Q_nps_1_2_min1")
+    Q_nps_1_2_max2 = _get_const(master_df,"Q_nps_1_2_max2")
+    Q_nps_1_2_max1 = _get_const(master_df,"Q_nps_1_2_max1")
+    p_knps = _get_day_value(master_df,"p_knps",n)
+    Q_knps_min1 = _get_const(master_df,"Q_knps_min1")
+    Q_knps_max2 = _get_const(master_df,"Q_knps_max2")
+    Q_knps_max1 = _get_const(master_df,"Q_knps_max1")
+    F = _get_day_value(master_df,"F",n)
     return{
-        "V_upsv_yu":  cppn1_results.get("V_upsv_yu"), "VA_upsv_yu_min":VA_upsv_yu_min, "VA_upsv_yu_max":VA_upsv_yu_max, "V_upsv_yu_prev":V_upsv_yu_prev,
-        "V_delta_upsv_yu_max":V_delta_upsv_yu_max, "VO_delta_upsv_yu_max":VO_delta_upsv_yu_max, "V_upsv_s": cppn1_results.get("V_upsv_s"),
-        "VA_upsv_s_min":VA_upsv_s_min, "VA_upsv_s_max":VA_upsv_s_max, "V_delta_upsv_s_max":V_delta_upsv_s_max, "VO_delta_upsv_s_max":VO_delta_upsv_s_max,
-        "V_cps":auto_balance_results.get("V_cps"), "VA_cps_min":VA_cps_min, "VA_cps_max":VA_cps_max, "V_delta_cps_max":V_delta_cps_max,
-        "VO_delta_cps_max":VO_delta_cps_max, "V_upn_suzun":suzun_results.get("V_upn_suzun"), "VA_upn_suzun_min":VA_upn_suzun_min,
-        "VA_upn_suzun_max":VA_upn_suzun_max, "V_delta_upn_suzun_max":V_delta_upn_suzun_max, "VO_delta_upn_suzun_max":VO_delta_upn_suzun_max, "V_upn_lodochny":lodochny_results.get("V_upn_lodochny"),
-        "V_upsv_s_prev":V_upsv_s_prev, "V_cps_prev":V_cps_prev, "V_upn_suzun_prev":V_upn_suzun_prev, "VA_upn_lodochny_min":VA_upn_lodochny_min, 
-        "VA_upn_lodochny_max":VA_upn_lodochny_max, "V_upn_lodochny_prev":V_upn_lodochny_prev, "V_delta_upn_lodochny_max":V_delta_upn_lodochny_max, "VO_upn_lodochny_max":VO_upn_lodochny_max, "V_tagul":V_tagul,
-        "VA_tagul_min":VA_tagul_min, "VA_tagul_max":VA_tagul_max, "V_gnps":_val(tstn_results.get("V_gnps")), "VA_gnps_min":VA_gnps_min,"VA_gnps_max":VA_gnps_max,
-        "V_delta_gnps_max":V_delta_gnps_max,"VO_gnps_max":VO_gnps_max, "V_gnps_prev":V_gnps_prev,"V_nps_1":tstn_results.get("V_nps_1"), 
-        "V_nps_1_prev":V_nps_1_prev, "VA_nps_1_min":VA_nps_1_min, "VA_nps_1_max":VA_nps_1_max, "V_delta_nps_1_max":V_delta_nps_1_max,"VO_nps_1_max":VO_nps_1_max,
-        "V_nps_2":_val(tstn_results.get("V_nps_2")),"V_nps_2_prev":V_nps_2_prev,"VA_nps_2_min":VA_nps_2_min,"VA_nps_2_max":VA_nps_2_max,"V_delta_nps_2_max":V_delta_nps_2_max,
-        "VO_nps_2_max":VO_nps_2_max,"V_knps":_val(tstn_results.get("V_knps")), "VN_knps_min":VN_knps_min, "VN_knps_max":VN_knps_max, "V_delta_knps_max":V_delta_knps_max, "VO_knps_max":VO_knps_max,
-        "V_knps_prev":V_knps_prev, "V_ichem": lodochny_results.get("V_ichem"), "V_ichem_min":V_ichem_min,"V_ichem_max":V_ichem_max,
-        "V_lodochny_cps_uspv_yu":cppn1_results.get("V_lodochny_cps_upsv_yu"), "G_sikn_tagul":lodochny_results.get("G_sikn_tagul"), "V_tstn_vn":_val(tstn_results.get("V_tstn_vn")),
-        "V_tstn_min":V_tstn_min, "V_tstn_max":V_tstn_max, "V_tstn_suzun":_val(tstn_results.get("V_tstn_suzun")), "V_tstn_suzun_min":V_tstn_suzun_min, "V_tstn_suzun_max":V_tstn_suzun_max,
-        "V_tstn_suzun_vankor":_val(tstn_results.get("V_tstn_suzun_vankor")), "V_tstn_suzun_vankor_min":V_tstn_suzun_vankor_min,"V_tstn_suzun_vankor_max":V_tstn_suzun_vankor_max, "V_tstn_suzun_vslu":_val(tstn_results.get("V_tstn_suzun_vslu")),
-        "V_tstn_suzun_vslu_min":V_tstn_suzun_vslu_min, "V_tstn_suzun_vslu_max":V_tstn_suzun_vslu_max,"V_tstn_tagul_obch":_val(tstn_results.get("V_tstn_tagul_obch")), "V_tstn_tagul_obch_min":V_tstn_tagul_obch_min,"V_tstn_tagul_obch_max":V_tstn_tagul_obch_max,
-        "V_tstn_lodochny":_val(tstn_results.get("V_tstn_lodochny")), "V_tstn_lodochny_min":V_tstn_lodochny_min,"V_tstn_lodochny_max":V_tstn_lodochny_max,
-        "V_tstn_tagul_min":V_tstn_tagul_min, "V_tstn_tagul":_val(tstn_results.get("V_tstn_tagul")), "V_tstn_tagul_max":V_tstn_tagul_max,
-        "V_tstn_skn":_val(tstn_results.get("V_tstn_skn")), "V_tstn_skn_min":V_tstn_skn_min, "V_tstn_skn_max":V_tstn_skn_max, "V_tstn_vo":_val(tstn_results.get("V_tstn_vo")),"V_tstn_vo_min":V_tstn_vo_min,"V_tstn_vo_max":V_tstn_vo_max,
-        "V_tstn_tng":_val(tstn_results.get("V_tstn_tng")), "V_tstn_tng_min":V_tstn_tng_min, "V_tstn_tng_max":V_tstn_tng_max,"V_tstn_kchng":_val(tstn_results.get("V_tstn_kchng")), "V_tstn_kchng_min":V_tstn_kchng_min,
-        "V_tstn_kchng_max":V_tstn_kchng_max, "p_gnps":p_gnps, "G_gnps":tstn_results.get("G_gnps"), "Q_gnps_min_1":Q_gnps_min_1,"Q_gnps_max_2":Q_gnps_max_2,"Q_gnps_max_1":Q_gnps_max_1,
-        "G_tagul_lodochny":lodochny_results.get("G_tagul_lodochny"), "p_nps_1_2":p_nps_1_2,"Q_nps_1_2_min_1":Q_nps_1_2_min_1,"Q_nps_1_2_max_2":Q_nps_1_2_max_2,"Q_nps_1_2_max_1":Q_nps_1_2_max_1,
-        "p_knps":p_knps, "Q_knps_min_1":Q_knps_min_1,"Q_knps_max_2":Q_knps_max_2, "Q_knps_max_1":Q_knps_max_1,"F":auto_balance_results.get("F")
+        "VA_upsv_yu_min":VA_upsv_yu_min,
+        "V_upsv_yu":V_upsv_yu,
+        "VA_upsv_yu_max":VA_upsv_yu_max,
+        "V_upsv_yu_prev":V_upsv_yu_prev,
+        "delta_V_upsv_yu_max":delta_V_upsv_yu_max,
+        "delta_VO_upsv_yu_max":delta_VO_upsv_yu_max,
+        "VA_upsv_s_min":VA_upsv_s_min,
+        "V_upsv_s":V_upsv_s,
+        "VA_upsv_s_max":VA_upsv_s_max,
+        "V_upsv_s_prev":V_upsv_s_prev,
+        "delta_V_upsv_s_max":delta_V_upsv_s_max,
+        "delta_VO_upsv_s_max":delta_VO_upsv_s_max,
+        "VA_cps_min":VA_cps_min,
+        "V_cps":V_cps,
+        "VA_cps_max":VA_cps_max,
+        "V_cps_prev":V_cps_prev,
+        "delta_V_cps_max":delta_V_cps_max,
+        "delta_VO_cps_max":delta_VO_cps_max,
+        "VA_upn_suzun_min":VA_upn_suzun_min,
+        "V_upn_suzun":V_upn_suzun,
+        "VA_upn_suzun_max":VA_upn_suzun_max,
+        "V_upn_suzun_prev":V_upn_suzun_prev,
+        "delta_V_upn_suzun_max":delta_V_upn_suzun_max,
+        "delta_VO_upn_suzun_max":delta_VO_upn_suzun_max,
+        "VA_upn_lodochny_min":VA_upn_lodochny_min,
+        "V_upn_lodochny":V_upn_lodochny,
+        "VA_upn_lodochny_max":VA_upn_lodochny_max,
+        "V_upn_lodochny_prev":V_upn_lodochny_prev,
+        "delta_V_upn_lodochny_max":delta_V_upn_lodochny_max,
+        "delta_VO_upn_lodochny_max":delta_VO_upn_lodochny_max,
+        "VA_tagul_min":VA_tagul_min,
+        "V_tagul_tr":V_tagul_tr,
+        "VA_tagul_max":VA_tagul_max,
+        "VA_gnps_min":VA_gnps_min,
+        "V_gnps":V_gnps,
+        "VA_gnps_max":VA_gnps_max,
+        "V_gnps_prev":V_gnps_prev,
+        "delta_V_gnps_max":delta_V_gnps_max,
+        "delta_VO_gnps_max":delta_VO_gnps_max,
+        "VA_nps_1_min":VA_nps_1_min,
+        "V_nps_1":V_nps_1,
+        "VA_nps_1_max":VA_nps_1_max,
+        "V_nps_1_prev":V_nps_1_prev,
+        "delta_V_nps_1_max":delta_V_nps_1_max,
+        "delta_VO_nps_1_max":delta_VO_nps_1_max,
+        "VA_nps_2_min":VA_nps_2_min,
+        "V_nps_2":V_nps_2,
+        "VA_nps_2_max":VA_nps_2_max,
+        "V_nps_2_prev":V_nps_2_prev,
+        "delta_V_nps_2_max":delta_V_nps_2_max,
+        "delta_VO_nps_2_max":delta_VO_nps_2_max,
+        "VN_knps_min":VN_knps_min,
+        "V_knps":V_knps,
+        "VA_knps_max":VA_knps_max,
+        "V_knps_prev":V_knps_prev,
+        "delta_V_knps_max":delta_V_knps_max,
+        "delta_VO_knps_max":delta_VO_knps_max,
+        "V_ichem_min":V_ichem_min,
+        "V_ichem":V_ichem,
+        "V_ichem_max":V_ichem_max,
+        "V_lodochny_cps_upsv_yu":V_lodochny_cps_upsv_yu,
+        "G_sikn_tagul":G_sikn_tagul,
+        "V_tstn_vn_min":V_tstn_vn_min,
+        "V_tstn_vn":V_tstn_vn,
+        "V_tstn_vn_max":V_tstn_vn_max,
+        "V_tstn_suzun_min":V_tstn_suzun_min,
+        "V_tstn_suzun":V_tstn_suzun,
+        "V_tstn_suzun_max":V_tstn_suzun_max,
+        "V_tstn_suzun_vankor_min":V_tstn_suzun_vankor_min,
+        "V_tstn_suzun_vankor":V_tstn_suzun_vankor,
+        "V_tstn_suzun_vankor_max":V_tstn_suzun_vankor_max,
+        "V_tstn_suzun_vslu_min":V_tstn_suzun_vslu_min,
+        "V_tstn_suzun_vslu":V_tstn_suzun_vslu,
+        "V_tstn_suzun_vslu_max":V_tstn_suzun_vslu_max,
+        "V_tstn_tagul_obsh_min":V_tstn_tagul_obsh_min,
+        "V_tstn_tagul_obsh":V_tstn_tagul_obsh,
+        "V_tstn_tagul_obsh_max":V_tstn_tagul_obsh_max,
+        "V_tstn_lodochny_min":V_tstn_lodochny_min,
+        "V_tstn_lodochny":V_tstn_lodochny,
+        "V_tstn_lodochny_max":V_tstn_lodochny_max,
+        "V_tstn_tagul_min":V_tstn_tagul_min,
+        "V_tstn_tagul":V_tstn_tagul,
+        "V_tstn_tagul_max":V_tstn_tagul_max,
+        "V_tstn_skn_min":V_tstn_skn_min,
+        "V_tstn_skn":V_tstn_skn,
+        "V_tstn_skn_max":V_tstn_skn_max,
+        "V_tstn_vo_min":V_tstn_vo_min,
+        "V_tstn_vo":V_tstn_vo,
+        "V_tstn_vo_max":V_tstn_vo_max,
+        "V_tstn_tng_min":V_tstn_tng_min,
+        "V_tstn_tng":V_tstn_tng,
+        "V_tstn_tng_max":V_tstn_tng_max,
+        "V_tstn_kchng_min":V_tstn_kchng_min,
+        "V_tstn_kchng":V_tstn_kchng,
+        "V_tstn_kchng_max":V_tstn_kchng_max,
+        "G_gnps":G_gnps,
+        "p_gnps":p_gnps,
+        "Q_gnps_min1":Q_gnps_min1,
+        "Q_gnps_max2":Q_gnps_max2,
+        "Q_gnps_max1":Q_gnps_max1,
+        "G_tagul_lodochny":G_tagul_lodochny,
+        "p_nps_1_2":p_nps_1_2,
+        "Q_nps_1_2_min1":Q_nps_1_2_min1,
+        "Q_nps_1_2_max2":Q_nps_1_2_max2,
+        "Q_nps_1_2_max1":Q_nps_1_2_max1,
+        "p_knps":p_knps,
+        "Q_knps_min1":Q_knps_min1,
+        "Q_knps_max2":Q_knps_max2,
+        "Q_knps_max1":Q_knps_max1,
+        "F":F,
     }
-def plan_sdacha_data(master_df, n):
-    month_mask = (master_df["date"].dt.month == n.month) & (master_df["date"].dt.year == n.year)
 
-    def _sum_month(column_name):
-        if column_name not in master_df.columns:
-            return 0.0
-        values = master_df.loc[month_mask, column_name].values
-        return float(np.nansum(values)) if values.size else 0.0
-
-    return {
-        # Месячные суммы (рассчитанные по дням)
-        "F_vn": _sum_month("F_vn"),
-        "F_suzun": _sum_month("F_suzun"),
-        "F_suzun_vankor": _sum_month("F_suzun_vankor"),
-        "F_suzun_vsly": _sum_month("F_suzun_vslu"),
-        "F_tagul_lpy": _sum_month("F_tagul_lpu"),
-        "F_tagul_tpy": _sum_month("F_tagul_tpu"),
-        "F_skn": _sum_month("F_skn"),
-        "F_vo": _sum_month("F_vo"),
-        "F_tng": _sum_month("F_tng"),
-        "F_kchng": _sum_month("F_kchng"),
-        # Планы берём из JSON (monthly_data -> master_df)
-        "F_vn_plan": _get_day_value(master_df, "F_vn_plan", n, scalar=True),
-        "F_suzun_plan": _get_day_value(master_df, "F_suzun_plan", n, scalar=True),
-        "F_suzun_vankor_plan": _get_day_value(master_df, "F_suzun_vankor_plan", n, scalar=True),
-        "F_suzun_vsly_plan": _get_day_value(master_df, "F_suzun_vsly_plan", n, scalar=True),
-        "F_tagul_lpy_plan": _get_day_value(master_df, "F_tagul_lpy_plan", n, scalar=True),
-        "F_tagul_tpy_plan": _get_day_value(master_df, "F_tagul_tpy_plan", n, scalar=True),
-        "F_skn_plan": _get_day_value(master_df, "F_skn_plan", n, scalar=True),
-        "F_vo_plan": _get_day_value(master_df, "F_vo_plan", n, scalar=True),
-        "F_tng_plan": _get_day_value(master_df, "F_tng_plan", n, scalar=True),
-        "F_kchng_plan": _get_day_value(master_df, "F_kchng_plan", n, scalar=True),
-    }
-
-def balance_po_business_plan_data(master_df, n):
-    V_vn_nm_ost_np = _get_day_value(master_df,"V_vn_nm_ost_np",n,scalar=True)
-    V_vn_nm_ost_app = _get_day_value(master_df,"V_vn_nm_ost_app",n,scalar=True)
-    V_vn_nm_ost_texn = _get_day_value(master_df,"V_vn_nm_ost_texn",n,scalar=True)
-    V_vn_nm_path = _get_day_value(master_df, "V_vn_nm_path", n, scalar=True)
-    Q_vn_oil = _get_day_value(master_df, "Q_vn_oil", n, scalar=True)
-    Q_vn_condensate = _get_day_value(master_df, "Q_vn_condensate", n, scalar=True)
-    V_vn_lost_oil = _get_day_value(master_df,"V_vn_lost_oil",n,scalar=True)
-    V_vn_lost_transport = _get_day_value(master_df,"V_vn_lost_transport",n,scalar=True)
-    G_vn_release_suzun = _get_day_value(master_df,"G_vn_release_suzun",n,scalar=True)
-    V_vn_km_ost_np = _get_day_value(master_df,"V_vn_km_ost_np",n,scalar=True)
-    V_vn_km_ost_app = _get_day_value(master_df,"V_vn_km_ost_app",n,scalar=True)
-    V_vn_km_ost_texn = _get_day_value(master_df,"V_vn_km_ost_texn",n,scalar=True)
-    V_vn_km_path = _get_day_value(master_df,"V_vn_km_path",n,scalar=True)
-    F_vn_total = _get_day_value(master_df,"F_vn_total",n,scalar=True) 
-    V_suzun_nm_ost_np = _get_day_value(master_df, "V_suzun_nm_ost_np", n, scalar=True)
-    V_suzun_nm_ost_app = _get_day_value(master_df, "V_suzun_nm_ost_app", n, scalar=True)
-    V_suzun_nm_ost_texn = _get_day_value(master_df,"V_suzun_nm_ost_texn",n,scalar=True)
-    V_suzun_nm_path = _get_day_value(master_df,"V_suzun_nm_path",n,scalar=True)
-    Q_suzun_oil = _get_day_value(master_df,"Q_suzun_oil",n,scalar=True)
-    Q_suzun_condensate = _get_day_value(master_df, "Q_suzun_condensate", n, scalar=True)
-    V_suzun_lost_oil = _get_day_value(master_df,"V_suzun_lost_oil",n,scalar=True)
-    V_suzun_lost_transport_suzun = _get_day_value(master_df,"V_suzun_lost_transport_suzun",n,scalar=True)
-    G_suzun_mupn = _get_day_value(master_df,"G_suzun_mupn",n,scalar = True)
-    G_suzun_release_rn_drillig = _get_day_value(master_df,"G_suzun_release_rn_drillig",n,scalar=True)
-    F_suzun_total = _get_day_value(master_df,"F_suzun_total",n,scalar=True)
-    F_suzun_vankor = _get_day_value(master_df,"F_suzun_vankor",n,scalar=True)
-    V_suzun_km_ost_np = _get_day_value(master_df,"V_suzun_km_ost_np",n,scalar=True)
-    V_suzun_ost_app = _get_day_value(master_df,"V_suzun_ost_app",n,scalar=True)
-    V_suzun_km_texn = _get_day_value(master_df,"V_suzun_km_texn",n,scalar=True)
-    V_suzun_km_path = _get_day_value(master_df,"V_suzun_km_path",n,scalar=True)
-    G_suzun_buy = _get_day_value(master_df,"G_suzun_buy",n,scalar=True)
-    V_vo_nm_ost_np = _get_day_value(master_df, "V_vo_nm_ost_np", n, scalar=True)
-    V_vo_nm_ost_app = _get_day_value(master_df,"V_vo_nm_ost_app",n,scalar=True)
-    V_vo_nm_ost_texn = _get_day_value(master_df,"V_vo_nm_ost_texn",n,scalar=True)
-    V_vo_nm_path = _get_day_value(master_df,"V_vo_nm_path",n,scalar=True)
-    Q_vo_oil = _get_day_value(master_df,"Q_vo_oil",n,scalar=True)
-    Q_vo_condensate = _get_day_value(master_df,"Q_vo_condensate",n,scalar=True)
-    V_vo_lost_oil = _get_day_value(master_df,"V_vo_lost_oil",n,scalar=True)
-    V_vo_lost_transport = _get_day_value(master_df,"V_vo_lost_transport",n,scalar=True)
-    V_vo_km_ost_np = _get_day_value(master_df,"V_vo_km_ost_np",n,scalar=True)
-    V_vo_km_ost_app = _get_day_value(master_df,"V_vo_km_ost_app",n,scalar=True)
-    V_vo_km_ost_texn = _get_day_value(master_df,"V_vo_km_ost_texn",n,scalar=True)
-    V_vo_km_path = _get_day_value(master_df,"V_vo_km_path",n,scalar=True)
-    F_vo_total = _get_day_value(master_df,"F_vo_total",n,scalar=True)
-    V_lodochny_nm_ost_np = _get_day_value(master_df,"V_lodochny_nm_ost_np",n,scalar=True)
-    V_lodochny_nm_ost_app = _get_day_value(master_df,"V_lodochny_nm_ost_app",n,scalar=True)
-    V_lodochny_nm_ost_texn = _get_day_value(master_df,"V_lodochny_nm_ost_texn",n,scalar=True)
-    V_lodochny_nm_path = _get_day_value(master_df,"V_lodochny_nm_path",n,scalar=True)
-    Q_lodochny_oil = _get_day_value(master_df,"Q_lodochny_oil",n,scalar=True)
-    V_lodochny_lost_oil = _get_day_value(master_df,"V_lodochny_lost_oil",n,scalar=True)
-    V_lodochny_lost_transport = _get_day_value(master_df,"V_lodochny_lost_transport",n,scalar=True)
-    G_lodochny_release_rn_drillig = _get_day_value(master_df,"G_lodochny_release_rn_drillig",n,scalar=True)
-    V_lodochny_km_ost_np = _get_day_value(master_df,"V_lodochny_km_ost_np",n,scalar=True)
-    V_lodochny_km_ost_app = _get_day_value(master_df,"V_lodochny_km_ost_app",n,scalar=True)
-    V_lodochny_km_ost_texn = _get_day_value(master_df,"V_lodochny_km_ost_texn",n,scalar=True)
-    V_lodochny_km_path = _get_day_value(master_df,"V_lodochny_km_path",n,scalar=True)
-    F_lodochny_total = _get_day_value(master_df,"F_lodochny_total",n,scalar=True)
-    V_tagul_nm_ost_np = _get_day_value(master_df,"V_tagul_nm_ost_np",n,scalar=True)
-    V_tagul_nm_ost_app = _get_day_value(master_df,"V_tagul_nm_ost_app",n,scalar=True)
-    V_tagul_nm_ost_texn = _get_day_value(master_df,"V_tagul_nm_ost_texn",n,scalar=True)
-    V_tagul_nm_path = _get_day_value(master_df,"V_tagul_nm_path",n,scalar=True)
-    Q_tagul_oil = _get_day_value(master_df,"Q_tagul_oil",n,scalar=True)
-    V_tagul_lost_oil = _get_day_value(master_df,"V_tagul_lost_oil",n,scalar=True)
-    V_tagul_lost_transport = _get_day_value(master_df,"V_tagul_lost_transport",n,scalar=True)
-    G_tagul_release_rn_drillig = _get_day_value(master_df,"G_tagul_release_rn_drillig",n,scalar=True)
-    V_tagul_km_ost_np = _get_day_value(master_df,"V_tagul_km_ost_np",n,scalar=True)
-    V_tagul_km_ost_app = _get_day_value(master_df,"V_tagul_km_ost_app",n,scalar=True)
-    V_tagul_km_ost_texn = _get_day_value(master_df,"V_tagul_km_ost_texn",n,scalar=True)
-    V_tagul_km_path = _get_day_value(master_df,"V_tagul_km_path",n,scalar=True)
-    F_tagul_total = _get_day_value(master_df,"F_tagul_total",n,scalar=True)
-
-
-    return{
-        "V_vn_nm_ost_np":V_vn_nm_ost_np, "V_vn_nm_ost_app":V_vn_nm_ost_app, "V_vn_nm_ost_texn":V_vn_nm_ost_texn, "V_vn_nm_path":V_vn_nm_path,
-        "Q_vn_oil":Q_vn_oil, "Q_vn_condensate":Q_vn_condensate, "V_vn_lost_oil":V_vn_lost_oil, "V_vn_lost_transport":V_vn_lost_transport,
-        "G_vn_release_suzun":G_vn_release_suzun, "V_vn_km_ost_np":V_vn_km_ost_np, "V_vn_km_ost_app":V_vn_km_ost_app,"V_vn_km_ost_texn":V_vn_km_ost_texn,
-        "V_vn_km_path":V_vn_km_path, "F_vn_total":F_vn_total, "V_suzun_nm_ost_np":V_suzun_nm_ost_np, "V_suzun_nm_ost_app":V_suzun_nm_ost_app,
-        "V_suzun_nm_ost_texn":V_suzun_nm_ost_texn, "V_suzun_nm_path":V_suzun_nm_path, "Q_suzun_oil":Q_suzun_oil, "Q_suzun_condensate":Q_suzun_condensate,
-        "V_suzun_lost_oil":V_suzun_lost_oil,"V_suzun_lost_transport_suzun":V_suzun_lost_transport_suzun,"G_suzun_mupn":G_suzun_mupn,
-        "G_suzun_release_rn_drillig":G_suzun_release_rn_drillig, "F_suzun_total":F_suzun_total, "F_suzun_vankor":F_suzun_vankor, "V_suzun_km_ost_np":V_suzun_km_ost_np,
-        "V_suzun_ost_app":V_suzun_ost_app, "V_suzun_km_texn":V_suzun_km_texn, "V_suzun_km_path":V_suzun_km_path, "G_suzun_buy":G_suzun_buy, "V_vo_nm_ost_np":V_vo_nm_ost_np,
-        "V_vo_nm_ost_app":V_vo_nm_ost_app, "V_vo_nm_ost_texn":V_vo_nm_ost_texn, "V_vo_nm_path":V_vo_nm_path, "Q_vo_oil":Q_vo_oil, "Q_vo_condensate":Q_vo_condensate, "V_vo_lost_oil":V_vo_lost_oil,
-        "V_vo_lost_transport":V_vo_lost_transport, "V_vo_km_ost_np":V_vo_km_ost_np, "V_vo_km_ost_app":V_vo_km_ost_app, "V_vo_km_ost_texn":V_vo_km_ost_texn, "V_vo_km_path":V_vo_km_path,
-        "F_vo_total":F_vo_total, "F_vo_total":F_vo_total, "V_lodochny_nm_ost_np":V_lodochny_nm_ost_np, "V_lodochny_nm_ost_app":V_lodochny_nm_ost_app, "V_lodochny_nm_ost_texn":V_lodochny_nm_ost_texn,
-        "V_lodochny_nm_path":V_lodochny_nm_path, "Q_lodochny_oil":Q_lodochny_oil, "V_lodochny_lost_oil":V_lodochny_lost_oil, "V_lodochny_lost_transport":V_lodochny_lost_transport,
-        "G_lodochny_release_rn_drillig":G_lodochny_release_rn_drillig, "V_lodochny_km_ost_np":V_lodochny_km_ost_np, "V_lodochny_km_ost_app":V_lodochny_km_ost_app, "V_lodochny_km_ost_texn":V_lodochny_km_ost_texn,
-        "V_lodochny_km_path":V_lodochny_km_path, "F_lodochny_total":F_lodochny_total, "V_tagul_nm_ost_np":V_tagul_nm_ost_np, "V_tagul_nm_ost_app":V_tagul_nm_ost_app, "V_tagul_nm_ost_texn":V_tagul_nm_ost_texn,
-        "V_tagul_nm_path":V_tagul_nm_path, "Q_tagul_oil":Q_tagul_oil, "V_tagul_lost_oil":V_tagul_lost_oil, "V_tagul_lost_transport":V_tagul_lost_transport, "G_tagul_release_rn_drillig":G_tagul_release_rn_drillig,
-        "V_tagul_km_ost_np":V_tagul_km_ost_np, "V_tagul_km_ost_app":V_tagul_km_ost_app, "V_tagul_km_ost_texn":V_tagul_km_ost_texn, "V_tagul_km_path":V_tagul_km_path, "F_tagul_total":F_tagul_total
-    }
-def plan_balance_gtm_data(master_df,n,cppn1_results,TSTN_results,suzun_results,lodochny_results,K_vankor,K_suzun,K_tagul):
-    V_vn_nm_gtm_ost_dead = _get_day_value(master_df,"V_vn_nm_gtm_ost_dead",n,scalar=True)
-    V_vn_nm_gtm_ost_np = _get_day_value(master_df,"V_vn_nm_gtm_ost_np",n,scalar=True)
-    V_vn_nm_gtm_ost_app = _get_day_value(master_df,"V_vn_nm_gtm_ost_app",n,scalar=True)
-    V_vn_gtm_lost_condensate = _get_day_value(master_df,"V_vn_gtm_lost_condensate",n,scalar=True)
-    G_vn_gtm_release_tbs = _get_day_value(master_df,"G_vn_gtm_release_tbs",n,scalar=True)
-    G_vn_gtm_release_rn_drilling = _get_day_value(master_df,"G_vn_gtm_release_rn_drilling",n,scalar=True)
-    V_vn_nm_gtm_ost_rvs_clear = _get_day_value(master_df,"V_vn_nm_gtm_ost_rvs_clear",n,scalar=True)
-    V_vn_nm_gtm_ost_product = _get_day_value(master_df,"V_vn_nm_gtm_ost_product",n,scalar=True)
-    V_vn_km_gtm_ost_app = _get_day_value(master_df,"V_vn_km_gtm_ost_app",n,scalar=True)
-    V_suzun_vslu_0 = _get_const(master_df, "V_suzun_vslu_0")
-    V_suzun_nm_gtm_ost_cps = _get_day_value(master_df,"V_suzun_nm_gtm_ost_cps",n,scalar=True)
-    V_suzun_nm_gtm_ost_dead = _get_day_value(master_df,"V_suzun_nm_gtm_ost_dead",n,scalar=True)
-    V_suzun_nm_gtm_ost_texn = _get_day_value(master_df,"V_suzun_nm_gtm_ost_texn",n,scalar=True)
-    V_suzun_nm_gtm_ost_np = _get_day_value(master_df,"V_suzun_nm_gtm_ost_np",n,scalar=True)
-    V_suzun_nm_tgm_ost_app = _get_day_value(master_df,"V_suzun_nm_tgm_ost_app",n,scalar=True)
-    V_suzun_nm_gtm_ost_rvs=_get_day_value(master_df,"V_suzun_nm_gtm_ost_rvs",n,scalar=True)
-    V_suzun_0 = _get_const(master_df, "V_suzun_0")
-    V_vankor_suzun_0 = _get_const(master_df, "V_vankor_suzun_0")
-    V_vankor_vslu_0 = _get_const(master_df, "V_vankor_vslu_0")
-    V_suzun_nm_gtm_ost_app = _get_day_value(master_df,"V_suzun_nm_gtm_ost_app",n,scalar = True)
-    V_suzun_nm_gtm_ost_product = _get_day_value(master_df,"V_suzun_nm_gtm_ost_product",n,scalar= True)
-    V_suzun_km_gtm_ost_cps=_get_day_value(master_df,"V_suzun_km_gtm_ost_cps",n,scalar=True)
-    G_suzun_gtm_release = _get_day_value(master_df,"G_suzun_gtm_release",n,scalar=True)
-    V_ichem_0 = _get_const(master_df, "V_ichem_0")
-    V_vo_nm_gtm_ost_dead = _get_day_value(master_df,"V_vo_nm_gtm_ost_dead",n,scalar=True)
-    V_tstn_vo_0 = _get_const(master_df, "V_tstn_vo_0")
-    V_vo_nm_gtm_ost_np = _get_day_value(master_df,"V_vo_nm_gtm_ost_np",n,scalar=True)
-    V_vo_nm_gtm_ost_app = _get_day_value(master_df,"V_vo_nm_gtm_ost_app",n,scalar=True)
-    V_lodochny_0 = _get_const(master_df, "V_lodochny_0")
-    V_lodochny_nm_gtm_ost_upsv_yu = _get_day_value(master_df,"V_lodochny_nm_gtm_ost_upsv_yu",n,scalar=True)
-    V_tstn_lodochny_0 = _get_const(master_df, "V_tstn_lodochny_0")
-    V_lodochny_nm_gtm_ost_np = _get_day_value(master_df,"V_lodochny_nm_gtm_ost_np",n,scalar=True)
-    V_lodochny_nm_gtm_ost_app = _get_day_value(master_df,"V_lodochny_nm_gtm_ost_app",n,scalar=True)
-    V_lodochny_nm_gtm_dead = _get_day_value(master_df,"V_lodochny_nm_gtm_dead",n,scalar=True)
-    V_lodochny_nm_gtm_ost_rvs_clear = _get_day_value(master_df,"V_lodochny_nm_gtm_ost_rvs_clear",n,scalar=True)
-    V_tagul_nm_gtm_ost_dead = _get_day_value(master_df,"V_tagul_nm_gtm_ost_dead",n,scalar=True)
-    V_tagul_nm_gtm_ost_texn = _get_day_value(master_df,"V_tagul_nm_gtm_ost_texn",n,scalar=True)
-    V_tagul_nm_gtm_ost_np = _get_day_value(master_df,"V_tagul_nm_gtm_ost_np",n,scalar=True)
-    V_tagul_nm_gtm_ost_app = _get_day_value(master_df,"V_tagul_nm_gtm_ost_app",n,scalar=True)
-    V_tstn_tagul_0 = _get_const(master_df,"V_tstn_tagul_0")
-    G_tagul_gtm_release_rn_drilling = _get_day_value(master_df,"G_tagul_gtm_release_rn_drilling",n,scalar=True)
-    V_tagul_km_gtm_ost_np = _get_day_value(master_df,"V_tagul_km_gtm_ost_np",n,scalar=True)
-    V_tagul_km_gtm_ost_app = _get_day_value(master_df,"V_tagul_km_gtm_ost_app",n,scalar=True)
-
-    F_vn = _get_day_value(master_df, "F_vn", n, scalar=True)
-    V_tstn_vn = _to_scalar(TSTN_results.get("V_tstn_vn"))
-    Q_vslu_month = _to_scalar(suzun_results.get("Q_vslu_month"))
-    K_suzun_mining = _get_const(master_df, "K_suzun_mining")
-    G_per_month = _to_scalar(suzun_results.get("G_per_month"))
-    F_suzun_delta = _get_day_value(master_df, "F_suzun_delta", n, scalar=True)
-    F_suzun_vsly_delta = _get_day_value(master_df, "F_suzun_vsly_delta", n, scalar=True)
-    F_suzun_vankor_delta = _get_day_value(master_df, "F_suzun_vankor_delta", n, scalar=True)
-    V_suzun_slu = _get_day_value(master_df, "V_suzun_slu", n, scalar=True)
-    V_tstn_suzun = _to_scalar(TSTN_results.get("V_tstn_suzun"))
-    V_tstn_suzun_vslu = _to_scalar(TSTN_results.get("V_tstn_suzun_vslu"))
-    F_vo_delta = _get_day_value(master_df, "F_vo_delta", n, scalar=True)
-    V_tstn_vo = _to_scalar(TSTN_results.get("V_tstn_vo"))
-    V_tstn_lodochny = _to_scalar(TSTN_results.get("V_tstn_lodochny"))
-    F_tagul_tpy_delta = _get_day_value(master_df, "F_tagul_tpy_delta", n, scalar=True)
-    V_tstn_tagul = _to_scalar(TSTN_results.get("V_tstn_tagul"))
-    V_tstn_suzun_vankor = _to_scalar(TSTN_results.get("V_tstn_suzun_vankor"))
-    G_buy_month = float(np.nansum(_get_month_values(master_df, "G_buy_day", n.month)))
-    return{
-        "V_cppn_1_0":cppn1_results.get("V_cppn_1_0"), "V_tstn_vn_0":_to_scalar(TSTN_results.get("V_tstn_vn_0")),
-        "Q_vankor_month": suzun_results.get("Q_vankor_month"),"K_vankor":K_vankor, "G_buy_month":G_buy_month,
-        "V_cppn_1":cppn1_results.get("V_cppn_1"), "V_suzun_slu_0":suzun_results.get("V_suzun_slu_0"), "Q_suzun_month":suzun_results.get("Q_suzun_month"),
-        "V_suzun_vslu":suzun_results.get("V_suzun_vslu"), "K_suzun":K_suzun, "Q_vo_month":suzun_results.get("Q_vo_month"),"V_ichem":lodochny_results.get("V_ichem"),
-        "Q_lodochny_month":lodochny_results.get("Q_lodochny_month"),"V_lodochny":lodochny_results.get("V_lodochny"), "Q_tagul_month":lodochny_results.get("Q_tagul_month"),
-        "K_tagul":K_tagul,"V_vn_nm_gtm_ost_dead":V_vn_nm_gtm_ost_dead, "V_vn_nm_gtm_ost_np":V_vn_nm_gtm_ost_np, "V_vn_nm_gtm_ost_app":V_vn_nm_gtm_ost_app,
-        "V_vn_gtm_lost_condensate":V_vn_gtm_lost_condensate, "G_vn_gtm_release_tbs":G_vn_gtm_release_tbs, "G_vn_gtm_release_rn_drilling":G_vn_gtm_release_rn_drilling,
-        "V_vn_nm_gtm_ost_rvs_clear":V_vn_nm_gtm_ost_rvs_clear, "V_vn_nm_gtm_ost_product":V_vn_nm_gtm_ost_product, "V_vn_km_gtm_ost_app":V_vn_km_gtm_ost_app,
-        "V_suzun_nm_gtm_ost_cps":V_suzun_nm_gtm_ost_cps, "V_suzun_vslu_0":V_suzun_vslu_0,"V_suzun_nm_gtm_ost_dead":V_suzun_nm_gtm_ost_dead, "V_suzun_nm_gtm_ost_texn":V_suzun_nm_gtm_ost_texn,
-        "V_suzun_nm_gtm_ost_np":V_suzun_nm_gtm_ost_np, "V_suzun_nm_tgm_ost_app":V_suzun_nm_tgm_ost_app,"V_suzun_nm_gtm_ost_rvs":V_suzun_nm_gtm_ost_rvs,  "V_suzun_0":V_suzun_0, 
-        "V_vankor_suzun_0":V_vankor_suzun_0, "V_vankor_vslu_0":V_vankor_vslu_0, "V_suzun_nm_gtm_ost_app":V_suzun_nm_gtm_ost_app, "V_suzun_nm_gtm_ost_product":V_suzun_nm_gtm_ost_product,
-        "V_suzun_km_gtm_ost_cps":V_suzun_km_gtm_ost_cps, "G_suzun_gtm_release":G_suzun_gtm_release, "V_ichem_0":V_ichem_0, "V_vo_nm_gtm_ost_dead":V_vo_nm_gtm_ost_dead,
-        "V_tstn_vo_0":V_tstn_vo_0, "V_vo_nm_gtm_ost_np":V_vo_nm_gtm_ost_np, "V_vo_nm_gtm_ost_app":V_vo_nm_gtm_ost_app,"V_lodochny_0":V_lodochny_0,
-        "V_lodochny_nm_gtm_ost_upsv_yu":V_lodochny_nm_gtm_ost_upsv_yu, "V_tstn_lodochny_0":V_tstn_lodochny_0, "V_lodochny_nm_gtm_ost_np":V_lodochny_nm_gtm_ost_np,
-        "V_lodochny_nm_gtm_ost_app":V_lodochny_nm_gtm_ost_app, "V_lodochny_nm_gtm_dead":V_lodochny_nm_gtm_dead, "V_lodochny_nm_gtm_ost_rvs_clear":V_lodochny_nm_gtm_ost_rvs_clear,
-        "V_tagul_nm_gtm_ost_dead":V_tagul_nm_gtm_ost_dead,"V_tagul_nm_gtm_ost_texn":V_tagul_nm_gtm_ost_texn,"V_tagul_nm_gtm_ost_np":V_tagul_nm_gtm_ost_np, 
-        "V_tagul_nm_gtm_ost_app":V_tagul_nm_gtm_ost_app, "V_tstn_tagul_0":V_tstn_tagul_0, "G_tagul_gtm_release_rn_drilling":G_tagul_gtm_release_rn_drilling,
-        "V_tagul_km_gtm_ost_np":V_tagul_km_gtm_ost_np, "V_tagul_km_gtm_ost_app":V_tagul_km_gtm_ost_app,
-        "F_vn":F_vn, "V_tstn_vn":V_tstn_vn, "Q_vslu_month":Q_vslu_month, "K_suzun_mining":K_suzun_mining, "G_per_month":G_per_month,
-        "F_suzun_delta":F_suzun_delta, "F_suzun_vsly_delta":F_suzun_vsly_delta, "F_suzun_vankor_delta":F_suzun_vankor_delta, "V_suzun_slu":V_suzun_slu,
-        "V_tstn_suzun":V_tstn_suzun, "V_tstn_suzun_vslu":V_tstn_suzun_vslu, "F_vo_delta":F_vo_delta, "V_tstn_vo":V_tstn_vo,
-        "V_tstn_lodochny":V_tstn_lodochny, "F_tagul_tpy_delta":F_tagul_tpy_delta, "V_tstn_tagul":V_tstn_tagul, "V_tstn_suzun_vankor":V_tstn_suzun_vankor,
-    }    
     
