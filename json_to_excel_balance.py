@@ -825,34 +825,34 @@ excel_sheet['BD'+ str(row)].fill = pale_green_fill
 excel_sheet['R'+ str(row)] = _m("delta_G_sikn_month")
 excel_sheet['R'+ str(row)].fill = pale_green_fill
 
-excel_sheet['BZ'+ str(row)] = _m("F_suzun_vankor_month")
+excel_sheet['BZ'+ str(row)] = _m("F_suzun_vankor_sum")
 excel_sheet['BZ'+ str(row)].fill = pale_green_fill
 
-excel_sheet['CA'+ str(row)] = _m("F_suzun_vslu_month")
+excel_sheet['CA'+ str(row)] = _m("F_suzun_vslu_sum")
 excel_sheet['CA'+ str(row)].fill = pale_green_fill
 
-excel_sheet['CC'+ str(row)] = _m("F_tagul_lpu_month")
+excel_sheet['CC'+ str(row)] = _m("F_tagul_lpu_sum")
 excel_sheet['CC'+ str(row)].fill = pale_green_fill
 
-excel_sheet['CD'+ str(row)] = _m("F_tagul_tpu_month")
+excel_sheet['CD'+ str(row)] = _m("F_tagul_tpu_sum")
 excel_sheet['CD'+ str(row)].fill = pale_green_fill
 
-excel_sheet['CB'+ str(row)] = _m("F_tagul_month")
+excel_sheet['CB'+ str(row)] = _m("F_tagul_sum")
 excel_sheet['CB'+ str(row)].fill = pale_green_fill
 
-excel_sheet['CE'+ str(row)] = _m("F_skn_month")
+excel_sheet['CE'+ str(row)] = _m("F_skn_sum")
 excel_sheet['CE'+ str(row)].fill = pale_green_fill
 
-excel_sheet['CF'+ str(row)] = _m("F_vo_month")
+excel_sheet['CF'+ str(row)] = _m("F_vo_sum")
 excel_sheet['CF'+ str(row)].fill = pale_green_fill
 
-excel_sheet['CG'+ str(row)] = _m("F_tng_month")
+excel_sheet['CG'+ str(row)] = _m("F_tng_sum")
 excel_sheet['CG'+ str(row)].fill = pale_green_fill
 
-excel_sheet['CH'+ str(row)] = _m("F_kchng_month")
+excel_sheet['CH'+ str(row)] = _m("F_kchng_sum")
 excel_sheet['CH'+ str(row)].fill = pale_green_fill
 
-excel_sheet['BW'+ str(row)] = _m("F_month")
+excel_sheet['BW'+ str(row)] = _m("F_sum")
 excel_sheet['BW'+ str(row)].fill = pale_green_fill
 
 excel_sheet['BE'+ str(row)] = _m("G_gnps_month")
@@ -864,10 +864,10 @@ excel_sheet['AG'+ str(row)].fill = pale_blue_fill
 excel_sheet['AH'+ str(row)] = _m("G_out_udt_month")
 excel_sheet['AH'+ str(row)].fill = pale_blue_fill
 
-excel_sheet['BY'+ str(row)] = _m("F_suzun_month")
+excel_sheet['BY'+ str(row)] = _m("F_suzun_sum")
 excel_sheet['BY'+ str(row)].fill = pale_green_fill
 
-excel_sheet['BX'+ str(row)] = _m("F_vn_month")
+excel_sheet['BX'+ str(row)] = _m("F_vn_sum")
 excel_sheet['BX'+ str(row)].fill = pale_green_fill
 
 

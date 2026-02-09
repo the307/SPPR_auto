@@ -345,7 +345,7 @@ def get_availability_and_pumping_data(master_df, n, N, month, prev_day):
         "V_gnps_prev":V_gnps_prev,
         "G_gpns_i":G_gpns_i,
     }
-def get_month_data(master_df,month):
+def get_month_data(master_df,month,N,day):
     Q_vankor = _get_month_values(master_df,"Q_vankor",month)
     Q_suzun = _get_month_values(master_df,"Q_suzun",month)
     Q_vslu =  _get_month_values(master_df,"Q_vslu",month)
@@ -374,8 +374,22 @@ def get_month_data(master_df,month):
     delta_G_sikn = _get_month_values(master_df,"delta_G_sikn",month)
     # month_calc ожидает суточный ряд G_per, а не месячную сумму
     G_per = _get_month_values(master_df,"G_per",month)
+    G_ichem = _get_month_values(master_df,"G_ichem",month)
     V_ichem = _get_month_values(master_df,"V_ichem",month)
     G_upn_lodochny = _get_month_values(master_df,"G_upn_lodochny",month)
+    F_bp_vn = _get_month_scalar_values(master_df,"F_bp_vn",month)
+    F_bp_tagul_lpu = _get_month_scalar_values(master_df,"F_bp_tagul_lpu",month)
+    F_bp_tagul_tpu = _get_month_scalar_values(master_df,"F_bp_tagul_tpu",month)
+    F_bp_tagul = _get_month_scalar_values(master_df,"F_bp_tagul",month)
+    F_bp_suzun_vankor = _get_month_scalar_values(master_df,"F_bp_suzun_vankor",month)
+    F_bp_suzun_vslu = _get_month_scalar_values(master_df,"F_bp_suzun_vslu",month)
+    F_bp_skn = _get_month_scalar_values(master_df,"F_bp_skn",month)
+    F_bp_vo = _get_month_scalar_values(master_df,"F_bp_vo",month)
+    F_bp_tng = _get_month_scalar_values(master_df,"F_bp_tng",month)
+    F_bp_kchng = _get_month_scalar_values(master_df,"F_bp_kchng",month)
+    F_bp = _get_month_scalar_values(master_df,"F_bp",month)
+    F_bp_suzun = _get_month_scalar_values(master_df,"F_bp_suzun",month)
+
     return{
         "Q_vankor":Q_vankor,
         "Q_suzun":Q_suzun,
@@ -406,6 +420,21 @@ def get_month_data(master_df,month):
         "G_per":G_per,
         "V_ichem":V_ichem,
         "G_upn_lodochny":G_upn_lodochny,
+        "F_bp_vn":F_bp_vn,
+        "F_bp_tagul_lpu":F_bp_tagul_lpu,
+        "F_bp_tagul_tpu":F_bp_tagul_tpu,
+        "F_bp_tagul":F_bp_tagul,
+        "F_bp_suzun_vankor":F_bp_suzun_vankor,
+        "F_bp_suzun_vslu":F_bp_suzun_vslu,
+        "F_bp_skn":F_bp_skn,
+        "F_bp_vo":F_bp_vo,
+        "F_bp_tng":F_bp_tng,
+        "F_bp_kchng":F_bp_kchng,
+        "F_bp":F_bp,
+        "F_bp_suzun":F_bp_suzun,
+        "day":day,
+        "N":N,
+        "G_ichem":G_ichem,
     }
 
 def get_auto_balance_volumes(master_df, n, prev_day, N, prev_month):
@@ -574,7 +603,8 @@ def get_balance_data(master_df, n, prev_day):
         "G_suzun_vslu":G_suzun_vslu,
  }
 
-def get_bp_month_data(master_df, month, N, day):
+def get_bp_month_data(master_df, month):
+    F_suzun = _get_month_scalar_values(master_df,"F_suzun",month )
     F_suzun_vankor = _get_month_scalar_values(master_df,"F_suzun_vankor",month )
     F_tagul_lpu = _get_month_scalar_values(master_df,"F_tagul_lpu",month )
     F_tagul_tpu = _get_month_scalar_values(master_df,"F_tagul_tpu",month )
@@ -598,8 +628,7 @@ def get_bp_month_data(master_df, month, N, day):
         "F_kchng":F_kchng,
         "F_suzun_vslu":F_suzun_vslu,
         "F_tagul":F_tagul,
-        "N":N,
-        "day":day
+        "F_suzun":F_suzun,
     }
 def get_availability_oil_data (master_df, n, prev_day):
     V_tstn_suzun_vslu_prev = _get_day_value(master_df,"V_tstn_suzun_vslu",prev_day)
@@ -922,4 +951,135 @@ def get_rn_vankor_check_data(master_df, n, prev_day):
         "F":F,
     }
 
-    
+def get_deviations_from_bp_data(master_df, month):
+    # Эти показатели считаются как месячные итоги/планы и записываются на последний день месяца.
+    # Поэтому сюда нужно передавать скаляры (последнее валидное значение), а не массивы за месяц,
+    # иначе в массивах будут None/NaN на остальных днях и расчёт дельт упадёт.
+    _ = month  # month оставляем для совместимости сигнатуры
+    F_suzun_vankor_sum = _get_last_const(master_df, "F_suzun_vankor_sum")
+    F_tagul_lpu_sum = _get_last_const(master_df, "F_tagul_lpu_sum")
+    F_tagul_tpu_sum = _get_last_const(master_df, "F_tagul_tpu_sum")
+    F_vn_sum = _get_last_const(master_df, "F_vn_sum")
+    F_skn_sum = _get_last_const(master_df, "F_skn_sum")
+    F_vo_sum = _get_last_const(master_df, "F_vo_sum")
+    F_tng_sum = _get_last_const(master_df, "F_tng_sum")
+    F_kchng_sum = _get_last_const(master_df, "F_kchng_sum")
+    F_suzun_vslu_sum = _get_last_const(master_df, "F_suzun_vslu_sum")
+    F_suzun_sum = _get_last_const(master_df, "F_suzun_sum")
+
+    F_bp_tagul_lpu_month = _get_last_const(master_df, "F_bp_tagul_lpu_month")
+    F_bp_tagul_tpu_month = _get_last_const(master_df, "F_bp_tagul_tpu_month")
+    F_bp_suzun_vankor_month = _get_last_const(master_df, "F_bp_suzun_vankor_month")
+    F_bp_suzun_vslu_month = _get_last_const(master_df, "F_bp_suzun_vslu_month")
+    F_bp_skn_month = _get_last_const(master_df, "F_bp_skn_month")
+    F_bp_vo_month = _get_last_const(master_df, "F_bp_vo_month")
+    F_bp_tng_month = _get_last_const(master_df, "F_bp_tng_month")
+    F_bp_kchng_month = _get_last_const(master_df, "F_bp_kchng_month")
+    F_bp_suzun_month = _get_last_const(master_df, "F_bp_suzun_month")
+    F_bp_vn_month = _get_last_const(master_df, "F_bp_vn_month")
+    return{
+        "F_suzun_vankor_sum":F_suzun_vankor_sum,
+        "F_tagul_lpu_sum":F_tagul_lpu_sum,
+        "F_tagul_tpu_sum":F_tagul_tpu_sum,
+        "F_vn_sum":F_vn_sum,
+        "F_skn_sum":F_skn_sum,
+        "F_vo_sum":F_vo_sum,
+        "F_tng_sum":F_tng_sum,
+        "F_kchng_sum":F_kchng_sum,
+        "F_suzun_vslu_sum":F_suzun_vslu_sum,
+        "F_suzun_sum":F_suzun_sum,
+        "F_bp_tagul_lpu_month":F_bp_tagul_lpu_month,
+        "F_bp_tagul_tpu_month":F_bp_tagul_tpu_month,
+        "F_bp_suzun_vankor_month":F_bp_suzun_vankor_month,
+        "F_bp_suzun_vslu_month":F_bp_suzun_vslu_month,
+        "F_bp_skn_month":F_bp_skn_month,
+        "F_bp_vo_month":F_bp_vo_month,
+        "F_bp_tng_month":F_bp_tng_month,
+        "F_bp_kchng_month":F_bp_kchng_month,
+        "F_bp_suzun_month":F_bp_suzun_month,
+        "F_bp_vn_month":F_bp_vn_month    
+    }
+
+def get_planned_balance_for_bp_vn_data(master_df):
+    V_vn_ost_np_nm = _get_const(master_df,"V_vn_ost_np_nm")
+    V_vn_ost_app_nm = _get_const(master_df,"V_vn_ost_app_nm")
+    V_vn_ost_tech_nm = _get_const(master_df,"V_vn_ost_tech_nm")
+    V_vn_path_nm = _get_const(master_df,"V_vn_path_nm")
+    Q_vn_oil = _get_const(master_df,"Q_vn_oil")
+    Q_vn_condensate = _get_const(master_df,"Q_vn_condensate")
+    V_vn_lost_oil = _get_const(master_df,"V_vn_lost_oil")
+    V_vn_lost_cond = _get_const(master_df,"V_vn_lost_cond")
+    G_vn_fuel = _get_const(master_df,"G_vn_fuel")
+    G_vn_fill = _get_const(master_df,"G_vn_fill")
+    V_vn_lost_transp = _get_const(master_df,"V_vn_lost_transp")
+    G_vn_release_rn_drillig = _get_const(master_df,"G_vn_release_rn_drillig")
+    G_vn_release_suzun = _get_const(master_df,"G_vn_release_suzun")
+    G_vn_release_well_service = _get_const(master_df,"G_vn_release_well_service")
+    V_vn_ost_np_km = _get_const(master_df,"V_vn_ost_np_km")
+    V_vn_ost_app_km = _get_const(master_df,"V_vn_ost_app_km")
+    V_vn_ost_tech_km = _get_const(master_df,"V_vn_ost_tech_km")
+    V_vn_path_km = _get_const(master_df,"V_vn_path_km")
+    F_vn_total = _get_const(master_df,"F_vn_total")
+    return{
+        "V_vn_ost_np_nm":V_vn_ost_np_nm,
+        "V_vn_ost_app_nm":V_vn_ost_app_nm,
+        "V_vn_ost_tech_nm":V_vn_ost_tech_nm,
+        "V_vn_path_nm":V_vn_path_nm,
+        "Q_vn_oil":Q_vn_oil,
+        "Q_vn_condensate":Q_vn_condensate,
+        "V_vn_lost_oil":V_vn_lost_oil,
+        "V_vn_lost_cond":V_vn_lost_cond,
+        "G_vn_fuel":G_vn_fuel,
+        "G_vn_fill":G_vn_fill,
+        "V_vn_lost_transp":V_vn_lost_transp,
+        "G_vn_release_rn_drillig":G_vn_release_rn_drillig,
+        "G_vn_release_suzun":G_vn_release_suzun,
+        "G_vn_release_well_service":G_vn_release_well_service,
+        "V_vn_ost_np_km":V_vn_ost_np_km,
+        "V_vn_ost_app_km":V_vn_ost_app_km,
+        "V_vn_ost_tech_km":V_vn_ost_tech_km,
+        "V_vn_path_km":V_vn_path_km,
+        "F_vn_total":F_vn_total
+    }
+
+def get_planned_balance_for_bp_suzun_data(master_df):
+    V_suzun_ost_np_nm = _get_const(master_df,"V_suzun_ost_np_nm")
+    V_suzun_ost_app_nm = _get_const(master_df,"V_suzun_ost_app_nm")
+    V_suzun_ost_tech_nm = _get_const(master_df,"V_suzun_ost_tech_nm")
+    V_suzun_path_nm = _get_const(master_df,"V_suzun_path_nm")
+    Q_suzun_oil = _get_const(master_df,"Q_suzun_oil")
+    Q_suzun_condensate = _get_const(master_df,"Q_suzun_condensate")
+    V_suzun_lost_oil = _get_const(master_df,"V_suzun_lost_oil")
+    V_suzun_lost_cond = _get_const(master_df,"V_suzun_lost_cond")
+    G_suzun_fuel = _get_const(master_df,"G_suzun_fuel")
+    G_suzun_fill = _get_const(master_df,"G_suzun_fill")
+    V_suzun_lost_transp = _get_const(master_df,"V_suzun_lost_transp")
+    G_suzun_release_rn_drillig = _get_const(master_df,"G_suzun_release_rn_drillig")
+    G_suzun_release_suzun = _get_const(master_df,"G_suzun_release_suzun")
+    G_suzun_release_well_service = _get_const(master_df,"G_suzun_release_well_service")
+    V_suzun_ost_np_km = _get_const(master_df,"V_suzun_ost_np_km")
+    V_suzun_ost_app_km = _get_const(master_df,"V_suzun_ost_app_km")
+    V_suzun_ost_tech_km = _get_const(master_df,"V_suzun_ost_tech_km")
+    V_suzun_path_km = _get_const(master_df,"V_suzun_path_km")
+    F_suzun_total = _get_const(master_df,"F_suzun_total")
+    return{
+        "V_suzun_ost_np_nm":V_suzun_ost_np_nm,
+        "V_suzun_ost_app_nm":V_suzun_ost_app_nm,
+        "V_suzun_ost_tech_nm":V_suzun_ost_tech_nm,
+        "V_suzun_path_nm":V_suzun_path_nm,
+        "Q_suzun_oil":Q_suzun_oil,
+        "Q_suzun_condensate":Q_suzun_condensate,
+        "V_suzun_lost_oil":V_suzun_lost_oil,
+        "V_suzun_lost_cond":V_suzun_lost_cond,
+        "G_suzun_fuel":G_suzun_fuel,
+        "G_suzun_fill":G_suzun_fill,
+        "V_suzun_lost_transp":V_suzun_lost_transp,
+        "G_suzun_release_rn_drillig":G_suzun_release_rn_drillig,
+        "G_suzun_release_suzun":G_suzun_release_suzun,
+        "G_suzun_release_well_service":G_suzun_release_well_service,
+        "V_suzun_ost_np_km":V_suzun_ost_np_km,
+        "V_suzun_ost_app_km":V_suzun_ost_app_km,
+        "V_suzun_ost_tech_km":V_suzun_ost_tech_km,
+        "V_suzun_path_km":V_suzun_path_km,
+        "F_suzun_total":F_suzun_total
+    }

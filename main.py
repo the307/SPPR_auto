@@ -19,6 +19,9 @@ from calculate import (
     availability_oil_calc,
     bp_month_calc,
     rn_vankor_check_calc,
+    deviations_from_bp_calc,
+    planned_balance_for_bp_vn_calc,
+    planned_balance_for_bp_suzun_calc,
 )
 
 from data_prep import (
@@ -34,7 +37,10 @@ from data_prep import (
     get_balance_data,
     get_availability_oil_data,
     get_bp_month_data,
-    get_rn_vankor_check_data
+    get_rn_vankor_check_data,
+    get_deviations_from_bp_data,
+    get_planned_balance_for_bp_vn_data,
+    get_planned_balance_for_bp_suzun_data
 )
 from export import export_to_json, export_to_excel, export_input_template
 from error_handler import handle_error
@@ -205,13 +211,15 @@ def stage_availability_and_pumping(master_df: pd.DataFrame, dates: list[pd.Times
     return master_df
 
 
-def stage_month_calc(master_df: pd.DataFrame, dates: list[pd.Timestamp], state: dict) -> pd.DataFrame:
+def stage_month_calc(master_df: pd.DataFrame, dates: list[pd.Timestamp], state: dict, N: int) -> pd.DataFrame:
 
     last_date = max(dates)
     state["current_date"] = last_date
     month = int(last_date.month)
-
-    payload = get_month_data(master_df, month)
+    day = int(last_date.day)
+    state["current_day"] = day
+    
+    payload = get_month_data(master_df, month, N, day)
     result = month_calc(**payload)
     master_df = update_df(master_df, {"date": last_date, **result})
     return master_df
@@ -290,15 +298,14 @@ def stage_balance_calc(master_df: pd.DataFrame, dates: list[pd.Timestamp], state
     return master_df
 
 
-def stage_bp_month_calc(master_df: pd.DataFrame, dates: list[pd.Timestamp], state: dict, N:int) -> pd.DataFrame:
+def stage_bp_month_calc(master_df: pd.DataFrame, dates: list[pd.Timestamp], state: dict) -> pd.DataFrame:
     """Считает месячные суммы F_* и пишет их на последний день месяца."""
     if not dates:
         return master_df
     last_date = max(dates)
     state["current_date"] = last_date
     month = int(last_date.month)
-    day = int(last_date.day)
-    payload = get_bp_month_data(master_df, month, N, day)
+    payload = get_bp_month_data(master_df, month)
     result = bp_month_calc(**payload)
     master_df = update_df(master_df, {"date": last_date, **result})
     return master_df
@@ -311,6 +318,28 @@ def stage_rn_vankor_check(master_df: pd.DataFrame, dates: list[pd.Timestamp], st
         check_payload = get_rn_vankor_check_data(master_df, n, prev_day)
         check_result = rn_vankor_check_calc(**check_payload)
         master_df = update_df(master_df, {"date": n, **check_result})
+    return master_df
+
+def stage_deviations_from_bp(master_df: pd.DataFrame, dates: list[pd.Timestamp]) -> pd.DataFrame:
+    last_date = max(dates)
+    month = int(last_date.month)
+    payload = get_deviations_from_bp_data(master_df, month)
+    result = deviations_from_bp_calc(**payload)
+    master_df = update_df(master_df, {"date": last_date, **result})
+    return master_df
+
+def stage_planned_balance_for_bp_vn(master_df: pd.DataFrame, dates: list[pd.Timestamp]) -> pd.DataFrame:
+    last_date = max(dates)
+    payload = get_planned_balance_for_bp_vn_data(master_df)
+    result = planned_balance_for_bp_vn_calc(**payload)
+    master_df = update_df(master_df, {"date": last_date, **result})
+    return master_df
+
+def stage_planned_balance_for_suzun_vn(master_df: pd.DataFrame, dates: list[pd.Timestamp]) -> pd.DataFrame:
+    last_date = max(dates)
+    payload = get_planned_balance_for_bp_suzun_data(master_df)
+    result = planned_balance_for_bp_suzun_calc(**payload)
+    master_df = update_df(master_df, {"date": last_date, **result})
     return master_df
 
 def main():
@@ -327,7 +356,7 @@ def main():
         master_df = stage_value_recalculation(master_df, dates, N, prev_month, state)
         master_df = stage_rn_vankor(master_df, dates, N, state)
         master_df = stage_availability_and_pumping(master_df, dates, N, state)
-        master_df = stage_month_calc(master_df, dates, state)
+        master_df = stage_month_calc(master_df, dates, state,N)
         master_df, earliest_change = stage_auto_balance_volumes(master_df, dates, N, prev_month, state)
        
         # Если autobalance изменил ключевые объёмы — пересчитываем зависимые блоки заново
@@ -348,7 +377,7 @@ def main():
             master_df = stage_availability_and_pumping(master_df, dates, N, state)
 
             # 3) пересчёт месячных сумм и баланса/остатков
-            master_df = stage_month_calc(master_df, dates, state)
+            master_df = stage_month_calc(master_df, dates, state, N)
 
         # Баланс + суточные остатки нужно считать последовательно по дням:
         # баланс дня n зависит от остатков prev_day, которые появляются после расчёта availability для prev_day.
@@ -356,22 +385,25 @@ def main():
             master_df = stage_balance_calc(master_df, [n], state)
             master_df = stage_availability_oil(master_df, [n], state)
 
-        master_df = stage_bp_month_calc(master_df, dates, state, N)
+        master_df = stage_bp_month_calc(master_df, dates, state)
         master_df = stage_rn_vankor_check(master_df, dates, state)
-        # Экспорт результата: JSON → Excel
-        export_to_json(master_df, output_path="output.json")
+        master_df = stage_deviations_from_bp(master_df, dates)
+        master_df = stage_planned_balance_for_bp_vn(master_df, dates)
+        master_df = stage_planned_balance_for_suzun_vn(master_df, dates)
+        # Экспорт результата
+        result = export_to_json(master_df)  # dict в памяти, файл НЕ создаётся
         export_to_excel()
+        return result
     except CalculationValidationError as e:
-        handle_error(
+        return handle_error(
             {
                 "type": "CalculationValidationError",
                 "message": str(e),
                 "date": str(state["current_date"]) if state.get("current_date") is not None else None,
             }
         )
-        return
     except Exception as e:
-        handle_error(
+        error_result = handle_error(
             {
                 "type": type(e).__name__,
                 "message": str(e),
@@ -380,5 +412,5 @@ def main():
         )
         raise
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

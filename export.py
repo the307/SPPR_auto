@@ -129,7 +129,7 @@ def _merge_template_value(template_value: Any, actual_value: Any) -> Any:
             message = actual_value.get("message", message)
         else:
             value = actual_value if actual_value is not None else base_value
-        # На выходе: если status пустой/NaN — считаем "норм" (ставим 1),
+        # На выходе: если status пустой/NaN — считаем "норм" (ставим 0),
         # чтобы в результирующем JSON не было NaN/null статусов.
         try:
             if pd.isna(status):
@@ -159,12 +159,12 @@ def _row_for_date(df: pd.DataFrame, date_value: Any) -> Optional[pd.Series]:
     return matches.iloc[-1]
 
 
-def _export_like_input(
+def _build_output_dict(
     template: Dict[str, Any],
     master_df: pd.DataFrame,
-    output_path: str,
     calc_date: Optional[datetime],
-) -> None:
+) -> Dict[str, Any]:
+    """Собирает итоговый dict результата (в памяти, без записи на диск)."""
     df = master_df.copy()
     df["date"] = pd.to_datetime(df["date"]).dt.normalize()
 
@@ -262,10 +262,7 @@ def _export_like_input(
             days_out.append(day_out)
         output["days"] = days_out
 
-    with open(output_path, "w", encoding="utf-8") as f:
-        json.dump(output, f, ensure_ascii=False, indent=2)
-
-    _safe_print(f"Результат сохранён в {output_path}")
+    return output
 
 
 # -------------------------
@@ -274,25 +271,27 @@ def _export_like_input(
 
 def export_to_json(
     master_df: Optional[pd.DataFrame],
-    output_path: str = "output.json",
+    output_path: Optional[str] = None,
     calc_date: Optional[datetime] = None,
-    alarm_flag: bool = False,
-    alarm_msg: Optional[str] = None,
     error: Optional[Dict[str, Any]] = None,
-) -> None:
+) -> Dict[str, Any]:
     """
-    Экспортирует результаты расчётов в JSON, копируя структуру
-    входного JSON-шаблона (data12_input.json).
+    Собирает результаты расчётов в dict (структура входного JSON-шаблона)
+    и **возвращает**
 
-    В случае error — сохраняется только объект ошибки и расчёт
+    Если передан *output_path* — дополнительно сохраняет dict на диск.
+    Если *output_path* не задан — файл НЕ создаётся.
+
+    В случае *error* — возвращает только объект ошибки, расчёт
     считается прерванным.
     """
     if error is not None:
-        output = {"error": error}
-        with open(output_path, "w", encoding="utf-8") as f:
-            json.dump(output, f, ensure_ascii=False, indent=2)
+        output: Dict[str, Any] = {"error": error}
+        if output_path:
+            with open(output_path, "w", encoding="utf-8") as f:
+                json.dump(output, f, ensure_ascii=False, indent=2)
         _safe_print(f"Расчёт прерван. Ошибка: {error.get('message')}")
-        return
+        return output
 
     if master_df is None or master_df.empty:
         raise ValueError("DataFrame пуст, нет данных для экспорта")
@@ -301,7 +300,14 @@ def export_to_json(
     if not (isinstance(template, dict) and "days" in template and "control" in template):
         raise ValueError("Входной JSON не содержит секции 'control' и 'days'.")
 
-    _export_like_input(template, master_df, output_path, calc_date)
+    result = _build_output_dict(template, master_df, calc_date)
+
+    if output_path:
+        with open(output_path, "w", encoding="utf-8") as f:
+            json.dump(result, f, ensure_ascii=False, indent=2)
+        _safe_print(f"Результат сохранён в {output_path}")
+
+    return result
 
 
 def export_to_excel(

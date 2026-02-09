@@ -69,6 +69,8 @@ def lodochny_upsv_yu_calc(Q_lodochny, K_delta_g_upn_lodochny, K_otkachki, G_lodo
         "status": 0,
         "message": None,
     }
+    # рассчитывается только на последний день месяца (day == N)
+    K_otkachki_month = None
     if day == N:
         K_otkachki_month = G_lodochny_upsv_yu_month / Q_tagul_month
         if abs(K_otkachki - K_otkachki_month) >= 0.01:
@@ -86,6 +88,7 @@ def lodochny_upsv_yu_calc(Q_lodochny, K_delta_g_upn_lodochny, K_otkachki, G_lodo
         "G_lodochny_upsv_yu_month": G_lodochny_upsv_yu_month,
         "K_otkachki": K_otkachki,
         "Q_tagul_month": Q_tagul_month,
+        "K_otkachki_month": K_otkachki_month,
     }
 def precalc_value(
         Q_vslu, V_suzun_vslu_prev, V_suzun_tng_prev, G_payaha, G_suzun_tng, Q_vo, G_ichem, V_ichem_prev, G_lodochny_upsv_yu_month,
@@ -373,6 +376,7 @@ def availability_and_pumping_calc(G_gpns_i, N, V_gnps_prev, G_sikn, G_suzun_vslu
     G_gnps = G_gnps_month/N
     V_gnps = V_gnps_prev + G_sikn - G_gnps
 
+
     return{
         "G_gnps_month":G_gnps_month,
         "G_gnps":G_gnps,
@@ -382,7 +386,8 @@ def availability_and_pumping_calc(G_gpns_i, N, V_gnps_prev, G_sikn, G_suzun_vslu
 def month_calc (
         Q_vankor, Q_suzun, Q_vslu, Q_tng, Q_vo, Q_lodochny, G_suzun_vslu, G_sikn, G_sikn_tagul, G_sikn_suzun, G_sikn_tng, G_suzun_slu, G_sikn_vankor,
         G_skn, delta_G_sikn, delta_G_upn_lodochny, delta_G_tagul, G_suzun, G_sikn_vslu, G_lodochny, G_tagul_lodochny, delta_G_suzun, G_tagul, G_upn_lodochny_ichem,
-        G_kchng, Q_kchng, G_per, V_ichem, G_upn_lodochny
+        G_kchng, Q_kchng, G_per, V_ichem, G_upn_lodochny, F_bp_vn, F_bp_tagul_lpu, F_bp_tagul_tpu, F_bp_tagul, F_bp_suzun_vankor, F_bp_suzun_vslu,
+        F_bp_skn, F_bp_vo, F_bp_tng, F_bp_kchng, F_bp, F_bp_suzun, day, N, G_ichem
 ):
     Q_vankor_month = Q_vankor.sum()
     Q_suzun_month = Q_suzun.sum()
@@ -393,6 +398,7 @@ def month_calc (
     G_suzun_vslu_month = G_suzun_vslu.sum()
     G_sikn_vslu_month = G_sikn_vslu.sum()
     G_sikn_tng_month = G_sikn_tng.sum()
+    G_ichem_month = G_ichem.sum()
     # G_suzun_slu приходит как числовой ряд (без словарей)
     G_suzun_slu_month = G_suzun_slu.sum()
     G_sikn_vankor_month = G_sikn_vankor.sum()
@@ -414,7 +420,46 @@ def month_calc (
     G_per_month = G_per.sum()
     V_ichem_month = V_ichem.sum()
     G_upn_lodochny_month = G_upn_lodochny.sum()
+    F_bp_vn_month = F_bp_vn.sum()
+    F_bp_tagul_lpu_month = F_bp_tagul_lpu.sum()
+    F_bp_tagul_tpu_month = F_bp_tagul_tpu.sum()
+    F_bp_tagul_month = F_bp_tagul.sum()
+    F_bp_suzun_vankor_month = F_bp_suzun_vankor.sum()
+    F_bp_suzun_vslu_month = F_bp_suzun_vslu.sum()
+    F_bp_skn_month = F_bp_skn.sum()
+    F_bp_vo_month = F_bp_vo.sum()
+    F_bp_tng_month = F_bp_tng.sum()
+    F_bp_kchng_month = F_bp_kchng.sum()
+    F_bp_month = F_bp.sum()
+    F_bp_suzun_month = F_bp_suzun.sum()
+    F_bp_sr_month = F_bp_month/N
+
+    # # Подсветка "месячного" F_bp_month (если среди первых 10 суток есть F_bp < F_bp_sr_month)
+    # for ind, F_bp_day in enumerate(F_bp[:10]):
+    #     if F_bp_day < F_bp_sr_month:
+    #         F_bp[ind] = {
+    #             "value":F_bp_day,
+    #             "status": 2,
+    #             "message":None
+    #         }
+
+
+
     return {
+        "G_ichem_month":G_ichem_month,
+        "F_bp_vn_month":F_bp_vn_month,
+        "F_bp_tagul_lpu_month":F_bp_tagul_lpu_month,
+        "F_bp_tagul_tpu_month":F_bp_tagul_tpu_month,
+        "F_bp_tagul_month":F_bp_tagul_month,
+        "F_bp_suzun_vankor_month":F_bp_suzun_vankor_month,
+        "F_bp_suzun_vslu_month":F_bp_suzun_vslu_month,
+        "F_bp_skn_month":F_bp_skn_month,
+        "F_bp_vo_month":F_bp_vo_month,
+        "F_bp_tng_month":F_bp_tng_month,
+        "F_bp_kchng_month":F_bp_kchng_month,
+        "F_bp_month":F_bp_month,
+        "F_bp_suzun_month":F_bp_suzun_month,
+        "F_bp_sr_month":F_bp_sr_month,
         "G_per_month":G_per_month,
         "V_ichem_month":V_ichem_month,
         "Q_vankor_month":Q_vankor_month,
@@ -822,34 +867,32 @@ def rn_vankor_balance_calc (
         "F_suzun":F_suzun,
     }
     
-def bp_month_calc (F_suzun_vankor, F_tagul_lpu, F_tagul_tpu, F_vn, F, F_skn, F_vo, F_tng, F_kchng, F_suzun_vslu, F_tagul, N, day):
-    F_suzun_vankor_month = F_suzun_vankor.sum()
-    F_tagul_lpu_month = F_tagul_lpu.sum()
-    F_tagul_tpu_month = F_tagul_tpu.sum()
-    F_vn_month = F_vn.sum()
-    F_month = F.sum()
-    F_skn_month = F_skn.sum()
-    F_vo_month = F_vo.sum()
-    F_tng_month = F_tng.sum()
-    F_kchng_month = F_kchng.sum()
-    F_suzun_vslu_month = F_suzun_vslu.sum()
-    F_tagul_month = F_tagul.sum()
-    if day == 10:
-        F_bp_sr_month = F/N
-        if F_month < F_bp_sr_month:
-            pass
+def bp_month_calc (F_suzun_vankor, F_tagul_lpu, F_tagul_tpu, F_vn, F, F_skn, F_vo, F_tng, F_kchng, F_suzun_vslu, F_tagul, F_suzun):
+    F_suzun_vankor_sum = F_suzun_vankor.sum()
+    F_tagul_lpu_sum = F_tagul_lpu.sum()
+    F_tagul_tpu_sum = F_tagul_tpu.sum()
+    F_vn_sum = F_vn.sum()
+    F_sum = F.sum()
+    F_skn_sum = F_skn.sum()
+    F_vo_sum = F_vo.sum()
+    F_tng_sum = F_tng.sum()
+    F_kchng_sum = F_kchng.sum()
+    F_suzun_vslu_sum = F_suzun_vslu.sum()
+    F_tagul_sum = F_tagul.sum()
+    F_suzun_sum = F_suzun.sum()
     return{
-        "F_suzun_vankor_month":F_suzun_vankor_month,
-        "F_tagul_lpu_month":F_tagul_lpu_month,
-        "F_tagul_tpu_month":F_tagul_tpu_month,
-        "F_vn_month":F_vn_month,
-        "F_month":F_month,
-        "F_skn_month":F_skn_month,
-        "F_vo_month":F_vo_month,
-        "F_tng_month":F_tng_month,
-        "F_kchng_month":F_kchng_month,
-        "F_suzun_vslu_month":F_suzun_vslu_month,
-        "F_tagul_month":F_tagul_month,
+        "F_suzun_sum":F_suzun_sum,
+        "F_suzun_vankor_sum":F_suzun_vankor_sum,
+        "F_tagul_sum":F_tagul_sum,
+        "F_tagul_lpu_sum":F_tagul_lpu_sum,
+        "F_tagul_tpu_sum":F_tagul_tpu_sum,
+        "F_vn_sum":F_vn_sum,
+        "F_sum":F_sum,
+        "F_skn_sum":F_skn_sum,
+        "F_vo_sum":F_vo_sum,
+        "F_tng_sum":F_tng_sum,
+        "F_kchng_sum":F_kchng_sum,
+        "F_suzun_vslu_sum":F_suzun_vslu_sum,
     }
 def availability_oil_calc (
         V_tstn_suzun_vslu_prev, F_suzun_vslu, G_suzun_vslu, K_suzun, V_tstn_tagul_prev,  G_tagul, F_tagul_tpu, K_tagul, V_tstn_lodochny_prev,
@@ -1348,4 +1391,161 @@ def rn_vankor_check_calc(
         "Q_nps_1_2": Q_nps_1_2,
         "Q_knps": Q_knps,
         "F": F,
+    }
+
+def deviations_from_bp_calc(
+        F_suzun_vankor_sum, F_tagul_lpu_sum, F_tagul_tpu_sum, F_vn_sum, F_skn_sum, F_vo_sum, F_tng_sum, F_kchng_sum, F_suzun_vslu_sum,
+        F_suzun_sum, F_bp_tagul_lpu_month, F_bp_tagul_tpu_month, F_bp_suzun_vankor_month, F_bp_suzun_vslu_month, F_bp_skn_month, F_bp_vo_month,
+        F_bp_tng_month, F_bp_kchng_month, F_bp_suzun_month, F_bp_vn_month
+):
+    def _wrap_delta(value):
+        """
+        0 - значение равняется 0
+        1 - значение больше 0
+        2 - значение меньше нуля
+        """
+        try:
+            v = float(value)
+        except (TypeError, ValueError):
+            v = 0.0
+
+        # чтобы избежать -0.0 и микроскопических хвостов float
+        if abs(v) < 1e-9:
+            v = 0.0
+
+        if v == 0.0:
+            status = 0
+        elif v > 0.0:
+            status = 1
+        else:
+            status = 2
+        return {"value": v, "status": status, "message": None}
+
+    delta_F_suzun_vankor = F_suzun_vankor_sum - F_bp_suzun_vankor_month
+    delta_F_tagul_lpu = F_tagul_lpu_sum - F_bp_tagul_lpu_month
+    delta_F_tagul_tpu = F_tagul_tpu_sum - F_bp_tagul_tpu_month
+    delta_F_tagul = delta_F_tagul_lpu + delta_F_tagul_tpu
+    delta_F_vn = F_vn_sum - F_bp_vn_month
+    delta_F_skn = F_skn_sum - F_bp_skn_month
+    delta_F_vo = F_vo_sum - F_bp_vo_month
+    delta_F_tng = F_tng_sum - F_bp_tng_month
+    delta_F_kchng = F_kchng_sum - F_bp_kchng_month
+    delta_F_suzun_vslu = F_suzun_vslu_sum - F_bp_suzun_vslu_month
+    delta_F_suzun = F_suzun_sum - F_bp_suzun_month
+    delta_F = delta_F_suzun_vankor + delta_F_tagul_lpu + delta_F_tagul_tpu + delta_F_tagul + delta_F_vn + delta_F_skn + delta_F_vo + delta_F_tng + delta_F_kchng + delta_F_suzun_vslu + delta_F_suzun
+
+
+
+    delta_F_suzun_vankor = _wrap_delta(delta_F_suzun_vankor)
+    delta_F_tagul_lpu = _wrap_delta(delta_F_tagul_lpu)
+    delta_F_tagul_tpu = _wrap_delta(delta_F_tagul_tpu)
+    delta_F_tagul = _wrap_delta(delta_F_tagul)
+    delta_F_vn = _wrap_delta(delta_F_vn)
+    delta_F_skn = _wrap_delta(delta_F_skn)
+    delta_F_vo = _wrap_delta(delta_F_vo)
+    delta_F_tng = _wrap_delta(delta_F_tng)
+    delta_F_kchng = _wrap_delta(delta_F_kchng)
+    delta_F_suzun_vslu = _wrap_delta(delta_F_suzun_vslu)
+    delta_F_suzun = _wrap_delta(delta_F_suzun)
+    delta_F = _wrap_delta(delta_F)
+    
+    return{
+        "delta_F_suzun_vankor":delta_F_suzun_vankor,
+        "delta_F_tagul_lpu":delta_F_tagul_lpu,
+        "delta_F_tagul_tpu":delta_F_tagul_tpu,
+        "delta_F_tagul":delta_F_tagul,
+        "delta_F_vn":delta_F_vn,
+        "delta_F":delta_F,
+        "delta_F_skn":delta_F_skn,
+        "delta_F_vo":delta_F_vo,
+        "delta_F_tng":delta_F_tng,
+        "delta_F_kchng":delta_F_kchng,
+        "delta_F_suzun_vslu":delta_F_suzun_vslu,
+        "delta_F_suzun":delta_F_suzun,
+    }
+
+def planned_balance_for_bp_vn_calc(
+        V_vn_ost_np_nm, V_vn_ost_app_nm, V_vn_ost_tech_nm, V_vn_path_nm, Q_vn_oil, Q_vn_condensate, V_vn_lost_oil, V_vn_lost_cond, G_vn_fuel, G_vn_fill,
+        V_vn_lost_transp, G_vn_release_rn_drillig, G_vn_release_suzun, G_vn_release_well_service, V_vn_ost_np_km, V_vn_ost_app_km, V_vn_ost_tech_km, V_vn_path_km,
+        F_vn_total
+):
+    # Остатки нефти на ВПУ на начало месяца
+    V_vn_ost_vpy_nm = V_vn_ost_np_nm + V_vn_ost_app_nm + V_vn_ost_tech_nm
+# Остатки нефти (газового конденсата) на начало месяца, всего
+    V_vn_ost_nm = V_vn_ost_vpy_nm + V_vn_path_nm
+# Добыча нефти (газового конденсата)
+    Q_vn_total = Q_vn_oil + Q_vn_condensate
+#  Технологические потери нефти (газового конденсата)
+    V_vn_lost = V_vn_lost_oil + V_vn_lost_cond + V_vn_lost_transp
+# Расход нефти (газового конденсата) на собственные производственно-технологические нужды и топливо
+    G_vn_own = G_vn_fuel + G_vn_fill
+# Отпуск нефти (газового конденсата), всего
+    G_vn_release = G_vn_release_rn_drillig + G_vn_release_suzun + G_vn_release_well_service
+# Остатки нефти на ВПУ на конец месяца
+    V_vn_ost_vpy_km = V_vn_ost_np_km + V_vn_ost_app_km + V_vn_ost_tech_km
+# Остатки нефти (газового конденсата) на конец месяца, всего
+    V_vn_ost_km = V_vn_ost_vpy_km + V_vn_path_km
+# Изменение остатков нефти (газового конденсата) собственных, всего
+    V_vn_delta_ost = V_vn_ost_km - V_vn_ost_nm
+# Выполнение процедуры проверки
+    V_vn_check = (V_vn_ost_nm + Q_vn_total) - (V_vn_lost + G_vn_own + G_vn_release + F_vn_total + V_vn_ost_km)
+    V_vn_check = V_vn_check
+    V_vn_check = {"value": V_vn_check,
+            "status": 2 if V_vn_check !=0 else 1,
+            "message": "Проверка не пройдена." if V_vn_check !=0 else "Проверка пройдена",
+        }
+    return{
+        "V_vn_check":V_vn_check,
+        "V_vn_delta_ost":V_vn_delta_ost,
+        "V_vn_ost_km":V_vn_ost_km,
+        "V_vn_ost_vpy_km":V_vn_ost_vpy_km,
+        "G_vn_release":G_vn_release,
+        "G_vn_own":G_vn_own,
+        "V_vn_lost":V_vn_lost,
+        "Q_vn_total":Q_vn_total,
+        "V_vn_ost_nm":V_vn_ost_nm,
+        "V_vn_ost_vpy_nm":V_vn_ost_vpy_nm,
+    }
+
+def planned_balance_for_bp_suzun_calc(
+        V_suzun_ost_np_nm, V_suzun_ost_app_nm, V_suzun_ost_tech_nm, V_suzun_path_nm, Q_suzun_oil, Q_suzun_condensate, V_suzun_lost_oil, V_suzun_lost_cond, G_suzun_fuel, G_suzun_fill,
+        V_suzun_lost_transp, G_suzun_release_rn_drillig, G_suzun_release_suzun, G_suzun_release_well_service, V_suzun_ost_np_km, V_suzun_ost_app_km, V_suzun_ost_tech_km, V_suzun_path_km,
+        F_suzun_total
+):
+    # Остатки нефти на ВПУ на начало месяца
+    V_suzun_ost_vpy_nm = V_suzun_ost_np_nm + V_suzun_ost_app_nm + V_suzun_ost_tech_nm
+# Остатки нефти (газового конденсата) на начало месяца, всего
+    V_suzun_ost_nm = V_suzun_ost_vpy_nm + V_suzun_path_nm
+# Добыча нефти (газового конденсата)
+    Q_suzun_total = Q_suzun_oil + Q_suzun_condensate
+#  Технологические потери нефти (газового конденсата)
+    V_suzun_lost = V_suzun_lost_oil + V_suzun_lost_cond + V_suzun_lost_transp
+# Расход нефти (газового конденсата) на собственные производственно-технологические нужды и топливо
+    G_suzun_own = G_suzun_fuel + G_suzun_fill
+# Отпуск нефти (газового конденсата), всего
+    G_suzun_release = G_suzun_release_rn_drillig + G_suzun_release_suzun + G_suzun_release_well_service
+# Остатки нефти на ВПУ на конец месяца
+    V_suzun_ost_vpy_km = V_suzun_ost_np_km + V_suzun_ost_app_km + V_suzun_ost_tech_km
+# Остатки нефти (газового конденсата) на конец месяца, всего
+    V_suzun_ost_km = V_suzun_ost_vpy_km + V_suzun_path_km
+# Изменение остатков нефти (газового конденсата) собственных, всего
+    V_suzun_delta_ost = V_suzun_ost_km - V_suzun_ost_nm
+# Выполнение процедуры проверки
+    V_suzun_check = (V_suzun_ost_nm + Q_suzun_total) - (V_suzun_lost + G_suzun_own + G_suzun_release + F_suzun_total + V_suzun_ost_km)
+    V_suzun_check = V_suzun_check
+    V_suzun_check = {"value": V_suzun_check,
+            "status": 2 if V_suzun_check !=0 else 1,
+            "message": "Проверка не пройдена." if V_suzun_check !=0 else "Проверка пройдена",
+        }
+    return{
+        "V_suzun_check":V_suzun_check,
+        "V_suzun_delta_ost":V_suzun_delta_ost,
+        "V_suzun_ost_km":V_suzun_ost_km,
+        "V_suzun_ost_vpy_km":V_suzun_ost_vpy_km,
+        "G_suzun_release":G_suzun_release,
+        "G_suzun_own":G_suzun_own,
+        "V_suzun_lost":V_suzun_lost,
+        "Q_suzun_total":Q_suzun_total,
+        "V_suzun_ost_nm":V_suzun_ost_nm,
+        "V_suzun_ost_vpy_nm":V_suzun_ost_vpy_nm,
     }

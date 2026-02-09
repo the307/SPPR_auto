@@ -171,7 +171,7 @@
     "G_lodochny_upsv_yu_month": 28944.500000000007,
     "G_upn_lodochny_month": 106377.73900000003,
     "G_lodochny_month": 82477.739,
-    "G_ichem_month": null,
+    "G_ichem_month": 23900.0,
     "delta_G_upn_lodochny_month": 0,
     "Q_vo_month": 23813.0,
     "G_upn_lodochny_ichem_month": 23813.0,
@@ -180,24 +180,28 @@
     "G_kchng_month": 44020.0,
     "G_skn_month": 305400.0,
     "G_gnps_month": 794358.2169999996,
-    "F_month": 1453398.999,
-    "F_bp_sr_month": null,
-    "F_sum": null,
+    "F_bp_month": {
+      "value": 1364198.999,
+      "status": 2,
+      "message": "Значение не введено"
+    },
+    "F_bp_sr_month": 44006.419322580645,
+    "F_sum": 1453398.999,
     "delta_F": {
-      "value": null,
-      "status": 0,
+      "value": 138150.0,
+      "status": 1,
       "message": null
     },
     "F_vn_month": {
-      "value": 681943.6140000001,
+      "value": 700243.614,
       "status": 1,
       "message": "Значение введено"
     },
-    "F_bp_vn_month": null,
-    "F_vn_sum": null,
+    "F_bp_vn_month": 700243.6140000001,
+    "F_vn_sum": 681943.6140000001,
     "delta_F_vn": {
-      "value": null,
-      "status": 0,
+      "value": -18300.0,
+      "status": 2,
       "message": null
     },
     "F_suzun_month": {
@@ -205,11 +209,11 @@
       "status": 1,
       "message": "Значение введено"
     },
-    "F_bp_suzun_month": null,
-    "F_suzun_sum": null,
+    "F_bp_suzun_month": 63957.299,
+    "F_suzun_sum": 68757.299,
     "delta_F_suzun": {
-      "value": null,
-      "status": 0,
+      "value": 4800.0,
+      "status": 1,
       "message": null
     },
     "F_suzun_vankor_month": {
@@ -217,102 +221,102 @@
       "status": 1,
       "message": "Значение введено"
     },
-    "F_bp_suzun_vankor_month": null,
-    "F_suzun_vankor_sum": null,
+    "F_bp_suzun_vankor_month": 13542.968,
+    "F_suzun_vankor_sum": 13542.968,
     "delta_F_suzun_vankor": {
-      "value": null,
+      "value": 0.0,
       "status": 0,
       "message": null
     },
     "F_suzun_vslu_month": {
-      "value": 1000,
+      "value": 0,
       "status": 1,
       "message": "Значение введено"
     },
-    "F_bp_suzun_vslu_month": null,
-    "F_suzun_vslu_sum": null,
+    "F_bp_suzun_vslu_month": 1000.0,
+    "F_suzun_vslu_sum": 1000.0,
     "delta_F_suzun_vslu": {
-      "value": null,
+      "value": 0.0,
       "status": 0,
       "message": null
     },
-    "F_tagul_month": 314214.64,
-    "F_tagul_sum": null,
+    "F_tagul_month": null,
+    "F_tagul_sum": 314214.64,
     "delta_F_tagul": {
-      "value": null,
-      "status": 0,
+      "value": 48950.0,
+      "status": 1,
       "message": null
     },
     "F_tagul_lpu_month": {
-      "value": 110365.549,
+      "value": 94515.549,
       "status": 1,
       "message": "Значение введено"
     },
-    "F_bp_tagul_lpu_month": null,
-    "F_tagul_lpu_sum": null,
+    "F_bp_tagul_lpu_month": 94515.549,
+    "F_tagul_lpu_sum": 110365.549,
     "delta_F_tagul_lpu": {
-      "value": null,
-      "status": 0,
+      "value": 15850.0,
+      "status": 1,
       "message": null
     },
     "F_tagul_tpu_month": {
-      "value": 203849.09100000001,
+      "value": 170749.091,
       "status": 1,
       "message": "Значение введено"
     },
-    "F_bp_tagul_tpu_month": null,
-    "F_tagul_tpu_sum": null,
+    "F_bp_tagul_tpu_month": 170749.09100000001,
+    "F_tagul_tpu_sum": 203849.09100000001,
     "delta_F_tagul_tpu": {
-      "value": null,
-      "status": 0,
+      "value": 33100.0,
+      "status": 1,
       "message": null
     },
     "F_skn_month": {
-      "value": 305050,
+      "value": 260000,
       "status": 1,
       "message": "Значение введено"
     },
-    "F_bp_skn_month": null,
-    "F_skn_sum": null,
+    "F_bp_skn_month": 260000.0,
+    "F_skn_sum": 305050.0,
     "delta_F_skn": {
-      "value": null,
-      "status": 0,
+      "value": 45050.0,
+      "status": 1,
       "message": null
     },
     "F_vo_month": {
-      "value": 23990.478,
+      "value": 15890.478,
       "status": 1,
       "message": "Значение введено"
     },
-    "F_bp_vo_month": null,
-    "F_vo_sum": null,
+    "F_bp_vo_month": 15890.478,
+    "F_vo_sum": 23990.478,
     "delta_F_vo": {
-      "value": null,
-      "status": 0,
+      "value": 8100.0,
+      "status": 1,
       "message": null
     },
     "F_tng_month": {
-      "value": 350,
+      "value": 0,
       "status": 1,
       "message": "Значение введено"
     },
-    "F_bp_tng_month": null,
-    "F_tng_sum": null,
+    "F_bp_tng_month": 0.0,
+    "F_tng_sum": 350.0,
     "delta_F_tng": {
-      "value": null,
-      "status": 0,
+      "value": 350.0,
+      "status": 1,
       "message": null
     },
     "F_kchng_month": {
-      "value": 44550,
+      "value": 44000,
       "status": 1,
       "message": "Значение введено"
     },
-    "F_bp_kchng_month": null,
-    "F_kchng_sum": null,
+    "F_bp_kchng_month": 44300.0,
+    "F_kchng_sum": 44550.0,
     "delta_F_kchng": {
-      "value": null,
-      "status": 0,
+      "value": 250.0,
+      "status": 1,
       "message": null
     }
   },
@@ -342,7 +346,7 @@
       "status": 3,
       "message": "коэффициент откачки K_otkachki=0.7400 не совпадает с расчетным 0.1417 (расхождение > 0.01)"
     },
-    "K_otkachki_month": null,
+    "K_otkachki_month": 0.14170489427638444,
     "K_suzun": {
       "value": 0.06291,
       "status": 1,
@@ -1460,34 +1464,34 @@
       "status": 1,
       "message": "Значение введено"
     },
-    "V_vn_ost_vpy_nm": null,
-    "V_vn_ost_nm": null,
-    "Q_vn_total": null,
-    "V_vn_lost": null,
-    "G_vn_own": null,
-    "G_vn_release": null,
-    "V_vn_ost_vpy_km": null,
-    "V_vn_ost_km": null,
-    "V_vn_delta_ost": null,
+    "V_vn_ost_vpy_nm": 42190.556000000004,
+    "V_vn_ost_nm": 52885.65700000001,
+    "Q_vn_total": 719171.0,
+    "V_vn_lost": 116.0,
+    "G_vn_own": 0.0,
+    "G_vn_release": 18811.0,
+    "V_vn_ost_vpy_km": 42190.556000000004,
+    "V_vn_ost_km": 52885.65700000001,
+    "V_vn_delta_ost": 0.0,
     "V_vn_check": {
-      "value": null,
-      "status": 0,
-      "message": null
+      "value": 0.0,
+      "status": 1,
+      "message": "Проверка пройдена"
     },
     "V_suzun_ost_spy_nm": null,
-    "V_suzun_ost_nm": null,
-    "Q_suzun_total": null,
-    "V_suzun_lost": null,
-    "G_suzun_own": null,
-    "G_suzun_release": null,
+    "V_suzun_ost_nm": 27406.64,
+    "Q_suzun_total": 64495.181,
+    "V_suzun_lost": 0.0,
+    "G_suzun_own": 0.0,
+    "G_suzun_release": 3824.0,
     "F_suzun_suzun": null,
     "V_suzun_ost_spy_km": null,
-    "V_suzun_ost_km": null,
-    "V_suzun_delta_ost": null,
+    "V_suzun_ost_km": 27406.78,
+    "V_suzun_delta_ost": 0.13999999999941792,
     "V_suzun_check": {
-      "value": null,
-      "status": 0,
-      "message": null
+      "value": -16828.959000000003,
+      "status": 2,
+      "message": "Проверка не пройдена."
     },
     "V_vo_ost_vpy_nm": null,
     "V_vo_ost_nm": null,

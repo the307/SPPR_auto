@@ -81,7 +81,7 @@
     "G_skn_month": null,
     "G_gnps_month": null, 
 
-    "F_month": null,
+    "F_bp_month":  { "value": null, "status": null, "message": null },
     "F_bp_sr_month": null,
     "F_sum": null,
     "delta_F": { "value": null, "status": null, "message": null },
